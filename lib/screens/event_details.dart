@@ -78,7 +78,33 @@ class EventDetailsScreen extends StatelessWidget {
             // Register Button
             ElevatedButton(
               onPressed: () {
-                // Action when button is pressed
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: const Text("Confirm Registration"),
+                      content: const Text("Are you sure you want to register for this event?"),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop(); // Close the dialog
+                          },
+                          child: const Text("Cancel"),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop(); // Close the dialog
+                            // Add your registration logic here
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("Successfully registered for the event!"))
+                            );
+                          },
+                          child: const Text("Yes"),
+                        ),
+                      ],
+                    );
+                  },
+                );
               },
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16.0),
