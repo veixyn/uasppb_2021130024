@@ -41,8 +41,8 @@ class _HomePageState extends State<HomePage> {
   // Function to handle navigation
   void _onItemTapped(int index) async {
     if (index == 3) {
-      // Call sign-out logic if the "Logout" item is tapped
-      await _signOut(context);
+      // Show a confirmation dialog before sign-out
+      _confirmSignOut(context);
     } else {
       // Update selected index for other items
       setState(() {
@@ -51,6 +51,35 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+// Function to confirm sign-out
+  void _confirmSignOut(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Confirm Sign Out"),
+          content: const Text("Are you sure you want to sign out?"),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                _signOut(context); // Proceed with sign-out
+              },
+              child: const Text("Sign Out"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+// Function to perform the sign-out
   Future<void> _signOut(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     // Navigate back to the LoginScreen
