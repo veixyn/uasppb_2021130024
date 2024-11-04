@@ -35,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Dicoding Events'),
+        title: const Text('Dicoding Events'),
       ),
       body: SingleChildScrollView( // Makes the entire screen scrollable
         child: Padding(
@@ -47,42 +47,42 @@ class _LoginScreenState extends State<LoginScreen> {
                 'assets/login_image.png', // Replace with your image asset
                 height: 150,
               ),
-              SizedBox(height: 16),
-              Text(
+              const SizedBox(height: 16),
+              const Text(
                 'Login',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 8),
-              Text('Enter your account details below'),
-              SizedBox(height: 16),
+              const SizedBox(height: 8),
+              const Text('Enter your account details below'),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _emailController,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Email',
                   prefixIcon: Icon(Icons.email),
                   border: OutlineInputBorder(),
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _passwordController,
                 obscureText: true,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Password',
                   prefixIcon: Icon(Icons.lock),
                   suffixIcon: Icon(Icons.visibility_off),
                   border: OutlineInputBorder(),
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _signIn,
-                child: Text('Sign In'),
+                child: const Text('Sign In'),
                 style: ElevatedButton.styleFrom(
-                  minimumSize: Size(double.infinity, 48),
+                  minimumSize: const Size(double.infinity, 48),
                 ),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               TextButton(
                 onPressed: () {
                   Navigator.push(
@@ -90,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     MaterialPageRoute(builder: (context) => RegisterScreen()),
                   );
                 },
-                child: Text("Don't have an account yet? Sign up!"),
+                child: const Text("Don't have an account yet? Sign up!"),
               ),
             ],
           ),

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:uasppb_2021130024/screens/event_details.dart';
 import 'package:uasppb_2021130024/screens/finished_events.dart';
 import 'package:uasppb_2021130024/screens/login_screen.dart';
 import 'package:uasppb_2021130024/screens/my_events.dart';
@@ -142,6 +143,12 @@ class EventCard extends StatelessWidget {
           title: const Text('Event Title'),
           subtitle: const Text(
               'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => EventDetailsScreen()),
+            );
+          }
         ),
       ),
     );
