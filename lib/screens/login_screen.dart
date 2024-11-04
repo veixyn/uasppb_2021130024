@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:uasppb_2021130024/screens/admin_screen.dart';
 import 'package:uasppb_2021130024/screens/register_screen.dart';
 import 'package:uasppb_2021130024/screens/upcoming_events.dart';
 
@@ -20,15 +21,37 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => UpcomingEventsScreen()),
-      );
+
+      // Get the user’s role from Firestore
+      final uid = userCredential.user?.uid;
+      if (uid != null) {
+        final role = await _getUserRole(uid);
+        if (role == 'admin') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => AdminScreen()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => UpcomingEventsScreen()),
+          );
+        }
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Failed to sign in: $e")),
       );
     }
+  }
+
+// Helper function to retrieve user role
+  Future<String?> _getUserRole(String uid) async {
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    if (userDoc.exists) {
+      return userDoc['role'] as String?;
+    }
+    return null;
   }
 
   @override

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -14,6 +15,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _register() async {
     try {
+      // Register the user with email and password
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
@@ -21,6 +23,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       // Update display name
       await userCredential.user?.updateDisplayName(_nameController.text.trim());
+
+      // Add user to Firestore with a default role
+      await FirebaseFirestore.instance.collection('users').doc(userCredential.user?.uid).set({
+        'uid': userCredential.user?.uid,
+        'role': 'user', // Default role for new users
+        'email': _emailController.text.trim(),
+        'name': _nameController.text.trim(),
+      });
 
       // Sign out the user immediately after registration
       await _auth.signOut();
