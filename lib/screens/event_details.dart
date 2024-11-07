@@ -1,6 +1,24 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 
 class EventDetailsScreen extends StatelessWidget {
+  final String title;
+  final String host;
+  final String startingTime;
+  final int quota;
+  final String summary;
+  final String? imageBase64;
+
+  const EventDetailsScreen({
+    Key? key,
+    required this.title,
+    required this.host,
+    required this.startingTime,
+    required this.quota,
+    required this.summary,
+    this.imageBase64,
+  }) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -12,27 +30,33 @@ class EventDetailsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Event Image placeholder
+            // Display event image if available
             Container(
               height: 200,
               decoration: BoxDecoration(
                 color: Colors.grey[300],
                 borderRadius: BorderRadius.circular(10),
+                image: imageBase64 != null
+                    ? DecorationImage(
+                  image: MemoryImage(base64Decode(imageBase64!)),
+                  fit: BoxFit.cover,
+                )
+                    : null,
               ),
             ),
             const SizedBox(height: 16),
 
             // Event Title and Host
-            const Text(
-              "Event Title",
+            Text(
+              title,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
-              "Event Host",
+              host,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
@@ -43,7 +67,7 @@ class EventDetailsScreen extends StatelessWidget {
 
             // Event Details (Time and Quota)
             Text(
-              "Event Starting Time   |   Event Quota",
+              "$startingTime   |   Quota: $quota",
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
@@ -53,23 +77,13 @@ class EventDetailsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Event Description
-            const Expanded(
+            // Event Summary/Description
+            Expanded(
               child: SingleChildScrollView(
                 child: Text(
-                  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
-                      "Proin ultrices varius justo et auctor. Cras eu gravida nisi. "
-                      "Donec pretium ipsum quis felis lacinia dignissim. Phasellus "
-                      "vestibulum congue egestas. Maecenas mauris nibh, placerat "
-                      "quis ante dignissim, porta egestas turpis. Nulla venenatis "
-                      "sapien a eros tincidunt, sit amet pellentesque orci blandit. "
-                      "Cras sit amet ex lorem. Mauris a augue leo. Phasellus id "
-                      "pellentesque justo, a elementum tortor. Nunc vestibulum ipsum "
-                      "ex, id aliquet orci molestie in. In ut orci tempus, vulputate "
-                      "velit in, auctor sem. Maecenas dignissim nibh ligula, sit amet "
-                      "volutpat felis facilisis ac.",
+                  summary,
                   textAlign: TextAlign.justify,
-                  style: TextStyle(fontSize: 14),
+                  style: const TextStyle(fontSize: 14),
                 ),
               ),
             ),
@@ -96,7 +110,7 @@ class EventDetailsScreen extends StatelessWidget {
                             Navigator.of(context).pop(); // Close the dialog
                             // Add your registration logic here
                             ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("Successfully registered for the event!"))
+                              const SnackBar(content: Text("Successfully registered for the event!")),
                             );
                           },
                           child: const Text("Yes"),
