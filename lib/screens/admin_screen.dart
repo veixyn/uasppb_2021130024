@@ -38,7 +38,7 @@ class _HomePageState extends State<HomePage> {
 
   // Function to handle navigation
   void _onItemTapped(int index) async {
-    if (index == 3) {
+    if (index == 2) {
       // Show a confirmation dialog before sign-out
       _confirmSignOut(context);
     } else {
