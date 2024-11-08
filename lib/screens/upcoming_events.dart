@@ -1,13 +1,12 @@
+import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:uasppb_2021130024/screens/add_event_screen.dart';
 import 'package:uasppb_2021130024/screens/event_details.dart';
-import 'package:uasppb_2021130024/screens/finished_events.dart';
 import 'package:uasppb_2021130024/screens/login_screen.dart';
-import 'package:uasppb_2021130024/screens/my_events.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-void main() {
-  runApp(UpcomingEventsScreen());
-}
 
 class UpcomingEventsScreen extends StatelessWidget {
   @override
@@ -33,14 +32,13 @@ class _HomePageState extends State<HomePage> {
 
   // List of screens to navigate to
   final List<Widget> _pages = [
-    UpcomingEvents(),
-    FinishedEventsScreen(),
-    MyEventsScreen(),
+    AllEvents(),
+    AddEventForm(),
   ];
 
   // Function to handle navigation
   void _onItemTapped(int index) async {
-    if (index == 3) {
+    if (index == 2) {
       // Show a confirmation dialog before sign-out
       _confirmSignOut(context);
     } else {
@@ -106,15 +104,11 @@ class _HomePageState extends State<HomePage> {
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.event_available),
-            label: 'Upcoming',
+            label: 'All Events',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.check),
-            label: 'Finished',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.event),
-            label: 'My Events',
+            label: 'Add New Event',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.logout),
@@ -127,7 +121,7 @@ class _HomePageState extends State<HomePage> {
 }
 
 // "Upcoming Events" Page
-class UpcomingEvents extends StatelessWidget {
+class AllEvents extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -137,16 +131,56 @@ class UpcomingEvents extends StatelessWidget {
           child: Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              'Upcoming Events',
+              'All Events',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            itemCount: 10,
-            itemBuilder: (context, index) {
-              return EventCard();
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('events').snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Center(child: Text('No events found.'));
+              }
+              final events = snapshot.data!.docs;
+
+              return ListView.builder(
+                itemCount: events.length,
+                itemBuilder: (context, index) {
+                  final event = events[index];
+                  final documentId = event.id;
+                  return EventCard(
+                    documentId: documentId,
+                    title: event['eventName'] ?? 'No Title',
+                    summary: event['summary'] ?? 'No Summary',
+                    host: event['eventHost'] ?? 'Unknown Host',
+                    startingTime: event['startingTime'] ?? 'No Time',
+                    quota: event['quota'] ?? 0,
+                    imageBase64: event['imageBase64'],
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EventDetailsScreen(
+                            isAdmin: false, // or false for regular users
+                            documentId: documentId,
+                            eventTitle: event['eventName'] ?? 'No Title',
+                            summary: event['summary'] ?? 'No Summary',
+                            eventHost: event['eventHost'] ?? 'Unknown Host',
+                            startingTime: event['startingTime'] ?? 'No Time',
+                            quota: event['quota'] ?? 0,
+                            imageBase64: event['imageBase64'],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
             },
           ),
         ),
@@ -155,8 +189,27 @@ class UpcomingEvents extends StatelessWidget {
   }
 }
 
-// Reusable EventCard widget
 class EventCard extends StatelessWidget {
+  final String title;
+  final String summary;
+  final String host;
+  final String startingTime;
+  final int quota;
+  final String? imageBase64;
+  final VoidCallback onTap;
+
+  const EventCard({
+    Key? key,
+    required this.title,
+    required this.summary,
+    required this.host,
+    required this.startingTime,
+    required this.quota,
+    this.imageBase64,
+    required this.onTap,
+    required String documentId,
+  }) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -164,20 +217,21 @@ class EventCard extends StatelessWidget {
       child: Card(
         elevation: 2.0,
         child: ListTile(
-          leading: Container(
+          leading: imageBase64 != null
+              ? Image.memory(
+            base64Decode(imageBase64!),
             width: 50,
             height: 50,
-            color: Colors.grey[300], // Placeholder for image
+            fit: BoxFit.cover,
+          )
+              : Container(
+            width: 50,
+            height: 50,
+            color: Colors.grey[300],
           ),
-          title: const Text('Event Title'),
-          subtitle: const Text(
-              'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'),
-          onTap: () {
-            // Navigator.push(
-            //   context,
-            //   MaterialPageRoute(builder: (context) => EventDetailsScreen()),
-            // );
-          }
+          title: Text(title),
+          subtitle: Text(summary),
+          onTap: onTap,
         ),
       ),
     );

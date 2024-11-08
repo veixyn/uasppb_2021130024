@@ -37,9 +37,58 @@ class EventDetailsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Your existing widgets go here...
-
-                // Admin or User Actions
+              Container(
+              height: 200,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(10),
+                image: imageBase64 != null
+                    ? DecorationImage(
+                  image: MemoryImage(base64Decode(imageBase64!)),
+                  fit: BoxFit.cover,
+                )
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 16),
+                // Event Title and Host
+                Text(
+                  eventTitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  eventHost,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "$startingTime   |   Quota: $quota",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Text(
+                      summary,
+                      textAlign: TextAlign.justify,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 isAdmin ? _buildAdminButtons(screenContext) : _buildUserButton(screenContext),
               ],
             ),
@@ -106,7 +155,7 @@ class EventDetailsScreen extends StatelessWidget {
             );
           },
           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          child: const Text("Delete"),
+          child: const Text("Delete", style: TextStyle(color: Colors.white),),
         ),
       ],
     );
