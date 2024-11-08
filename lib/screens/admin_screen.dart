@@ -3,10 +3,8 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:uasppb_2021130024/screens/add_event_screen.dart';
-import 'package:uasppb_2021130024/screens/admin_screen.dart';
 import 'package:uasppb_2021130024/screens/event_details.dart';
 import 'package:uasppb_2021130024/screens/login_screen.dart';
-import 'package:uasppb_2021130024/screens/my_events.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 
@@ -36,7 +34,6 @@ class _HomePageState extends State<HomePage> {
   final List<Widget> _pages = [
     AllEvents(),
     AddEventForm(),
-    MyEventsScreen(),
   ];
 
   // Function to handle navigation
@@ -112,10 +109,6 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.check),
             label: 'Add New Event',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.event),
-            label: 'My Events',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.logout),
