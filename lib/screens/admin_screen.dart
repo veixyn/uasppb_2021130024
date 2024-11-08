@@ -159,7 +159,9 @@ class AllEvents extends StatelessWidget {
                 itemCount: events.length,
                 itemBuilder: (context, index) {
                   final event = events[index];
+                  final documentId = event.id;
                   return EventCard(
+                    documentId: documentId,
                     title: event['eventName'] ?? 'No Title',
                     summary: event['summary'] ?? 'No Summary',
                     host: event['eventHost'] ?? 'Unknown Host',
@@ -171,9 +173,11 @@ class AllEvents extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => EventDetailsScreen(
-                            title: event['eventName'] ?? 'No Title',
+                            isAdmin: true, // or false for regular users
+                            documentId: documentId,
+                            eventTitle: event['eventName'] ?? 'No Title',
                             summary: event['summary'] ?? 'No Summary',
-                            host: event['eventHost'] ?? 'Unknown Host',
+                            eventHost: event['eventHost'] ?? 'Unknown Host',
                             startingTime: event['startingTime'] ?? 'No Time',
                             quota: event['quota'] ?? 0,
                             imageBase64: event['imageBase64'],
@@ -210,6 +214,7 @@ class EventCard extends StatelessWidget {
     required this.quota,
     this.imageBase64,
     required this.onTap,
+    required String documentId,
   }) : super(key: key);
 
   @override

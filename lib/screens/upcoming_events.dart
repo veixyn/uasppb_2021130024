@@ -173,10 +173,10 @@ class EventCard extends StatelessWidget {
           subtitle: const Text(
               'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'),
           onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => EventDetailsScreen()),
-            );
+            // Navigator.push(
+            //   context,
+            //   MaterialPageRoute(builder: (context) => EventDetailsScreen()),
+            // );
           }
         ),
       ),
