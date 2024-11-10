@@ -2,12 +2,13 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:uasppb_2021130024/screens/edit_event_screen.dart';
 
-class EventDetailsScreen extends StatelessWidget {
-  final bool isAdmin; // New parameter to determine if the user is an admin
+class EventDetailsScreen extends StatefulWidget {
+  final bool isAdmin;
   final String eventTitle;
   final String eventHost;
-  final String startingTime;
+  final DateTime? startingTime;
   final int quota;
   final String summary;
   final String? imageBase64;
@@ -22,7 +23,103 @@ class EventDetailsScreen extends StatelessWidget {
     required this.summary,
     required this.imageBase64,
     required this.documentId,
+    required VoidCallback onEventUpdated,
   });
+
+  @override
+  _EventDetailsScreenState createState() => _EventDetailsScreenState();
+}
+
+class _EventDetailsScreenState extends State<EventDetailsScreen> {
+  late String eventTitle;
+  late String eventHost;
+  DateTime? startingTime;
+  late int quota;
+  late String summary;
+  String? imageBase64;
+
+  bool isRegistered = false; // Track registration status
+  String userId = "currentUserId"; // Replace with actual current user ID
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with values from widget
+    eventTitle = widget.eventTitle;
+    eventHost = widget.eventHost;
+    startingTime = widget.startingTime;
+    quota = widget.quota;
+    summary = widget.summary;
+    imageBase64 = widget.imageBase64;
+
+    _checkRegistrationStatus();
+  }
+
+  Future<void> _navigateAndEditEvent(BuildContext context) async {
+    final updatedData = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            EditEventScreen(
+              documentId: widget.documentId,
+              currentTitle: eventTitle,
+              currentHost: eventHost,
+              currentStartingTime: startingTime,
+              currentQuota: quota,
+              currentSummary: summary,
+              currentImageBase64: imageBase64,
+            ),
+      ),
+    );
+
+    // If updatedData is returned, update the state
+    if (updatedData != null) {
+      setState(() {
+        eventTitle = updatedData['eventName'];
+        eventHost = updatedData['eventHost'];
+        startingTime = updatedData['startingTime'];
+        quota = updatedData['quota'];
+        summary = updatedData['summary'];
+        imageBase64 = updatedData['imageBase64'];
+      });
+    }
+  }
+
+  Future<void> _checkRegistrationStatus() async {
+    final registration = await FirebaseFirestore.instance
+        .collection('registrations')
+        .where('userId', isEqualTo: userId)
+        .where('eventId', isEqualTo: widget.documentId)
+        .get();
+    setState(() {
+      isRegistered = registration.docs.isNotEmpty;
+    });
+  }
+
+  Future<void> _registerForEvent() async {
+    await FirebaseFirestore.instance.collection('registrations').add({
+      'userId': userId,
+      'eventId': widget.documentId,
+    });
+    setState(() {
+      isRegistered = true;
+    });
+  }
+
+  Future<void> _cancelRegistration() async {
+    final registration = await FirebaseFirestore.instance
+        .collection('registrations')
+        .where('userId', isEqualTo: userId)
+        .where('eventId', isEqualTo: widget.documentId)
+        .get();
+
+    if (registration.docs.isNotEmpty) {
+      await registration.docs.first.reference.delete();
+    }
+    setState(() {
+      isRegistered = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,14 +127,12 @@ class EventDetailsScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text("Event Details"),
       ),
-      body: Builder(
-        builder: (BuildContext screenContext) {
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-              Container(
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
               height: 200,
               decoration: BoxDecoration(
                 color: Colors.grey[300],
@@ -51,49 +146,50 @@ class EventDetailsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-                // Event Title and Host
-                Text(
-                  eventTitle,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  eventHost,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "$startingTime   |   Quota: $quota",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Text(
-                      summary,
-                      textAlign: TextAlign.justify,
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                isAdmin ? _buildAdminButtons(screenContext) : _buildUserButton(screenContext),
-              ],
+            Text(
+              eventTitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          );
-        },
+            Text(
+              eventHost,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "${startingTime?.toString()}   |   Quota: $quota",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Text(
+                  summary,
+                  textAlign: TextAlign.justify,
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            widget.isAdmin
+                ? _buildAdminButtons(context)
+                : isRegistered
+                ? _buildCancelButton()
+                : _buildRegisterButton()
+          ],
+        ),
       ),
     );
   }
@@ -103,9 +199,7 @@ class EventDetailsScreen extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         ElevatedButton(
-          onPressed: () {
-            // Edit event logic (if any)
-          },
+          onPressed: () => _navigateAndEditEvent(screenContext),
           child: const Text("Edit"),
         ),
         ElevatedButton(
@@ -116,26 +210,31 @@ class EventDetailsScreen extends StatelessWidget {
               builder: (BuildContext context) {
                 return AlertDialog(
                   title: const Text("Confirm Delete"),
-                  content: const Text("Are you sure you want to delete this event?"),
+                  content: const Text(
+                      "Are you sure you want to delete this event?"),
                   actions: [
                     TextButton(
-                      onPressed: () => Navigator.of(context).pop(), // Close the dialog
+                      onPressed: () => Navigator.of(context).pop(),
+                      // Close the dialog
                       child: const Text("Cancel"),
                     ),
                     TextButton(
                       onPressed: () async {
-                        Navigator.of(context).pop(); // Close the confirmation dialog
+                        Navigator.of(context)
+                            .pop(); // Close the confirmation dialog
 
                         // Delete the event from Firestore
                         try {
                           await FirebaseFirestore.instance
-                              .collection('events') // Replace 'events' with your collection name
-                              .doc(documentId)
+                              .collection(
+                              'events') // Replace 'events' with your collection name
+                              .doc(widget.documentId)
                               .delete();
 
                           // Show success message
                           ScaffoldMessenger.of(screenContext).showSnackBar(
-                            const SnackBar(content: Text("Event deleted successfully!")),
+                            const SnackBar(
+                                content: Text("Event deleted successfully!")),
                           );
 
                           // Close the EventDetailsScreen after deletion
@@ -143,7 +242,8 @@ class EventDetailsScreen extends StatelessWidget {
                         } catch (e) {
                           // Show error message if deletion fails
                           ScaffoldMessenger.of(screenContext).showSnackBar(
-                            SnackBar(content: Text("Failed to delete event: $e")),
+                            SnackBar(
+                                content: Text("Failed to delete event: $e")),
                           );
                         }
                       },
@@ -161,39 +261,17 @@ class EventDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildUserButton(BuildContext context) {
+  Widget _buildRegisterButton() {
     return ElevatedButton(
-      onPressed: () {
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text("Confirm Registration"),
-              content: const Text("Are you sure you want to register for this event?"),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text("Cancel"),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(); // Close the dialog
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Successfully registered for the event!")),
-                    );
-                  },
-                  child: const Text("Yes"),
-                ),
-              ],
-            );
-          },
-        );
-      },
-      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16.0)),
-      child: const Text(
-        "Register for this Event",
-        style: TextStyle(fontSize: 16),
-      ),
+      onPressed: _registerForEvent,
+      child: const Text("Register for this Event"),
+    );
+  }
+
+  Widget _buildCancelButton() {
+    return ElevatedButton(
+      onPressed: _cancelRegistration,
+      child: const Text("Cancel Registration"),
     );
   }
 }

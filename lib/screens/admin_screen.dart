@@ -1,12 +1,10 @@
 import 'dart:convert';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uasppb_2021130024/screens/add_event_screen.dart';
 import 'package:uasppb_2021130024/screens/event_details.dart';
 import 'package:uasppb_2021130024/screens/login_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 
 class AdminScreen extends StatelessWidget {
   @override
@@ -32,24 +30,22 @@ class _HomePageState extends State<HomePage> {
 
   // List of screens to navigate to
   final List<Widget> _pages = [
-    AllEvents(),
+    AllEvents(refreshEvents: () {  },),
     AddEventForm(),
   ];
 
   // Function to handle navigation
   void _onItemTapped(int index) async {
     if (index == 2) {
-      // Show a confirmation dialog before sign-out
       _confirmSignOut(context);
     } else {
-      // Update selected index for other items
       setState(() {
         _selectedIndex = index;
       });
     }
   }
 
-// Function to confirm sign-out
+  // Function to confirm sign-out
   void _confirmSignOut(BuildContext context) {
     showDialog(
       context: context,
@@ -66,8 +62,8 @@ class _HomePageState extends State<HomePage> {
             ),
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-                _signOut(context); // Proceed with sign-out
+                Navigator.of(context).pop();
+                _signOut(context);
               },
               child: const Text("Sign Out"),
             ),
@@ -77,15 +73,17 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-// Function to perform the sign-out
   Future<void> _signOut(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
-    // Navigate back to the LoginScreen
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => LoginScreen()),
           (route) => false,
     );
+  }
+
+  void _refreshEvents() {
+    setState(() {});
   }
 
   @override
@@ -94,13 +92,18 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('Dicoding Events'),
       ),
-      body: _pages[_selectedIndex], // Display the selected page
-
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          AllEvents(refreshEvents: _refreshEvents),
+          AddEventForm(),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.grey,
-        currentIndex: _selectedIndex, // Track the selected index
-        onTap: _onItemTapped, // Handle item tap
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.event_available),
@@ -122,6 +125,10 @@ class _HomePageState extends State<HomePage> {
 
 // "Upcoming Events" Page
 class AllEvents extends StatelessWidget {
+  final VoidCallback refreshEvents;
+
+  const AllEvents({Key? key, required this.refreshEvents}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -153,12 +160,15 @@ class AllEvents extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final event = events[index];
                   final documentId = event.id;
+                  final Timestamp? startingTimestamp = event['startingTime'];
+                  final startingTime = startingTimestamp?.toDate();
+
                   return EventCard(
                     documentId: documentId,
                     title: event['eventName'] ?? 'No Title',
                     summary: event['summary'] ?? 'No Summary',
                     host: event['eventHost'] ?? 'Unknown Host',
-                    startingTime: event['startingTime'] ?? 'No Time',
+                    startingTime: startingTime,
                     quota: event['quota'] ?? 0,
                     imageBase64: event['imageBase64'],
                     onTap: () {
@@ -166,14 +176,15 @@ class AllEvents extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => EventDetailsScreen(
-                            isAdmin: true, // or false for regular users
+                            isAdmin: true,
                             documentId: documentId,
                             eventTitle: event['eventName'] ?? 'No Title',
                             summary: event['summary'] ?? 'No Summary',
                             eventHost: event['eventHost'] ?? 'Unknown Host',
-                            startingTime: event['startingTime'] ?? 'No Time',
+                            startingTime: startingTime,
                             quota: event['quota'] ?? 0,
                             imageBase64: event['imageBase64'],
+                            onEventUpdated: refreshEvents,
                           ),
                         ),
                       );
@@ -193,7 +204,7 @@ class EventCard extends StatelessWidget {
   final String title;
   final String summary;
   final String host;
-  final String startingTime;
+  final DateTime? startingTime;
   final int quota;
   final String? imageBase64;
   final VoidCallback onTap;
@@ -230,7 +241,17 @@ class EventCard extends StatelessWidget {
             color: Colors.grey[300],
           ),
           title: Text(title),
-          subtitle: Text(summary),
+          subtitle: Text(
+            summary,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: Text(
+            startingTime != null
+                ? '${startingTime!.day}-${startingTime!.month}-${startingTime!.year} ${startingTime!.hour}:${startingTime!.minute}'
+                : 'No Time',
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
           onTap: onTap,
         ),
       ),

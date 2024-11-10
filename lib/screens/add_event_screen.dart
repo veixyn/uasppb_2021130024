@@ -17,7 +17,7 @@ class _AddEventFormState extends State<AddEventForm> {
   final _eventHostController = TextEditingController();
   final _cityController = TextEditingController();
   final _quotaController = TextEditingController();
-  final _startingTimeController = TextEditingController();
+  DateTime? _selectedDateTime;
   Uint8List? _selectedImageBytes;
   final ImagePicker _picker = ImagePicker();
 
@@ -31,9 +31,36 @@ class _AddEventFormState extends State<AddEventForm> {
     }
   }
 
+  // Function to select date and time
+  Future<void> _pickDateTime() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
+    );
+    if (date != null) {
+      final time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
+      );
+      if (time != null) {
+        setState(() {
+          _selectedDateTime = DateTime(
+            date.year,
+            date.month,
+            date.day,
+            time.hour,
+            time.minute,
+          );
+        });
+      }
+    }
+  }
+
   // Function to save event data to Firestore, including the image as base64
   Future<void> _saveEvent() async {
-    if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState!.validate() && _selectedDateTime != null) {
       try {
         // Convert the image to base64 if it exists
         final imageBase64 = _selectedImageBytes != null ? base64Encode(_selectedImageBytes!) : null;
@@ -46,7 +73,7 @@ class _AddEventFormState extends State<AddEventForm> {
           'city': _cityController.text.trim(),
           'quota': int.parse(_quotaController.text.trim()),
           'registrants': 0,
-          'startingTime': _startingTimeController.text.trim(),
+          'startingTime': _selectedDateTime,  // Use selected date and time
           'imageBase64': imageBase64,  // Store image as base64
           'createdAt': Timestamp.now(),
         });
@@ -56,6 +83,7 @@ class _AddEventFormState extends State<AddEventForm> {
         );
         _formKey.currentState!.reset();
         setState(() {
+          _selectedDateTime = null;
           _selectedImageBytes = null;
         });
       } catch (e) {
@@ -63,6 +91,10 @@ class _AddEventFormState extends State<AddEventForm> {
           SnackBar(content: Text("Failed to add event: $e")),
         );
       }
+    } else if (_selectedDateTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select a starting time")),
+      );
     }
   }
 
@@ -133,15 +165,15 @@ class _AddEventFormState extends State<AddEventForm> {
                   return null;
                 },
               ),
-              TextFormField(
-                controller: _startingTimeController,
-                decoration: const InputDecoration(labelText: 'Starting Time (e.g. 2024-12-31 18:00)'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter starting time';
-                  }
-                  return null;
-                },
+              const SizedBox(height: 16),
+              ListTile(
+                title: Text(
+                  _selectedDateTime == null
+                      ? 'Select Starting Time'
+                      : 'Starting Time: ${_selectedDateTime.toString()}',
+                ),
+                trailing: Icon(Icons.calendar_today),
+                onTap: _pickDateTime,
               ),
               const SizedBox(height: 16),
               Row(

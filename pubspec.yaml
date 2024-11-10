@@ -68,6 +68,7 @@ flutter:
   assets:
     - assets/login_image.png
     - assets/register_image.png
+    - lib/screens/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

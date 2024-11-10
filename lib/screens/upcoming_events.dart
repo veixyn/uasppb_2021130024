@@ -1,12 +1,16 @@
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:uasppb_2021130024/screens/add_event_screen.dart';
 import 'package:uasppb_2021130024/screens/event_details.dart';
+import 'package:uasppb_2021130024/screens/finished_events.dart';
 import 'package:uasppb_2021130024/screens/login_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uasppb_2021130024/screens/my_events.dart';
 
+void main() {
+  runApp(UpcomingEventsScreen());
+}
 
 class UpcomingEventsScreen extends StatelessWidget {
   @override
@@ -32,13 +36,14 @@ class _HomePageState extends State<HomePage> {
 
   // List of screens to navigate to
   final List<Widget> _pages = [
-    AllEvents(),
-    AddEventForm(),
+    UpcomingEvents(refreshEvents: () {  },),
+    FinishedEventsScreen(),
+    MyEventsScreen(),
   ];
 
   // Function to handle navigation
   void _onItemTapped(int index) async {
-    if (index == 2) {
+    if (index == 3) {
       // Show a confirmation dialog before sign-out
       _confirmSignOut(context);
     } else {
@@ -104,11 +109,15 @@ class _HomePageState extends State<HomePage> {
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.event_available),
-            label: 'All Events',
+            label: 'Upcoming',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.check),
-            label: 'Add New Event',
+            label: 'Finished',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.event),
+            label: 'My Events',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.logout),
@@ -121,7 +130,11 @@ class _HomePageState extends State<HomePage> {
 }
 
 // "Upcoming Events" Page
-class AllEvents extends StatelessWidget {
+class UpcomingEvents extends StatelessWidget {
+  final VoidCallback refreshEvents;
+
+  const UpcomingEvents({Key? key, required this.refreshEvents}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -131,7 +144,7 @@ class AllEvents extends StatelessWidget {
           child: Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              'All Events',
+              'Upcoming Events',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
@@ -153,12 +166,15 @@ class AllEvents extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final event = events[index];
                   final documentId = event.id;
+                  final Timestamp? startingTimestamp = event['startingTime'];
+                  final startingTime = startingTimestamp?.toDate();
+
                   return EventCard(
                     documentId: documentId,
                     title: event['eventName'] ?? 'No Title',
                     summary: event['summary'] ?? 'No Summary',
                     host: event['eventHost'] ?? 'Unknown Host',
-                    startingTime: event['startingTime'] ?? 'No Time',
+                    startingTime: startingTime,
                     quota: event['quota'] ?? 0,
                     imageBase64: event['imageBase64'],
                     onTap: () {
@@ -166,14 +182,15 @@ class AllEvents extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => EventDetailsScreen(
-                            isAdmin: false, // or false for regular users
+                            isAdmin: false,
                             documentId: documentId,
                             eventTitle: event['eventName'] ?? 'No Title',
                             summary: event['summary'] ?? 'No Summary',
                             eventHost: event['eventHost'] ?? 'Unknown Host',
-                            startingTime: event['startingTime'] ?? 'No Time',
+                            startingTime: startingTime,
                             quota: event['quota'] ?? 0,
                             imageBase64: event['imageBase64'],
+                            onEventUpdated: refreshEvents,
                           ),
                         ),
                       );
@@ -189,11 +206,12 @@ class AllEvents extends StatelessWidget {
   }
 }
 
+// Reusable EventCard widget
 class EventCard extends StatelessWidget {
   final String title;
   final String summary;
   final String host;
-  final String startingTime;
+  final DateTime? startingTime;
   final int quota;
   final String? imageBase64;
   final VoidCallback onTap;
@@ -230,7 +248,17 @@ class EventCard extends StatelessWidget {
             color: Colors.grey[300],
           ),
           title: Text(title),
-          subtitle: Text(summary),
+          subtitle: Text(
+            summary,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: Text(
+            startingTime != null
+                ? '${startingTime!.day}-${startingTime!.month}-${startingTime!.year} ${startingTime!.hour}:${startingTime!.minute}'
+                : 'No Time',
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
           onTap: onTap,
         ),
       ),
