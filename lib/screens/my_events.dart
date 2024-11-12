@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:uasppb_2021130024/screens/event_details.dart';
 
@@ -27,16 +28,21 @@ class HomePage extends StatelessWidget {
 
   const HomePage({Key? key, required this.refreshEvents}) : super(key: key);
 
-  final String userId = "currentUserId"; // Replace with the actual current user ID
+  Future<String?> _getCurrentUserId() async {
+    final user = FirebaseAuth.instance.currentUser;
+    return user?.uid;
+  }
 
   Future<List<DocumentSnapshot>> _fetchRegisteredEvents() async {
+    final userId = await _getCurrentUserId();
+    if (userId == null) return []; // Handle case where user is not logged in
+
     final registrations = await FirebaseFirestore.instance
         .collection('registrations')
         .where('userId', isEqualTo: userId)
         .get();
 
     final eventIds = registrations.docs.map((doc) => doc['eventId']).toList();
-
     if (eventIds.isEmpty) return []; // Return empty list if no registrations
 
     final events = await FirebaseFirestore.instance
@@ -122,6 +128,7 @@ class HomePage extends StatelessWidget {
     );
   }
 }
+
 
 class EventCard extends StatelessWidget {
   final String title;
