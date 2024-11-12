@@ -135,6 +135,17 @@ class UpcomingEvents extends StatelessWidget {
 
   const UpcomingEvents({Key? key, required this.refreshEvents}) : super(key: key);
 
+  Future<List<DocumentSnapshot>> _fetchUpcomingEvents() async {
+    final now = DateTime.now();
+
+    final events = await FirebaseFirestore.instance
+        .collection('events')
+        .where('startingTime', isGreaterThan: Timestamp.fromDate(now))
+        .get();
+
+    return events.docs;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -150,17 +161,20 @@ class UpcomingEvents extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('events').snapshots(),
+          child: FutureBuilder<List<DocumentSnapshot>>(
+            future: _fetchUpcomingEvents(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const Center(child: Text('No events found.'));
+              if (snapshot.hasError) {
+                return const Center(child: Text("Error loading events"));
               }
-              final events = snapshot.data!.docs;
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(child: Text("No upcoming events"));
+              }
 
+              final events = snapshot.data!;
               return ListView.builder(
                 itemCount: events.length,
                 itemBuilder: (context, index) {

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:uasppb_2021130024/screens/event_details.dart';
 
 void main() {
   runApp(MyEventsScreen());
@@ -16,12 +17,16 @@ class MyEventsScreen extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: HomePage(),
+      home: HomePage(refreshEvents: () {  },),
     );
   }
 }
 
 class HomePage extends StatelessWidget {
+  final VoidCallback refreshEvents;
+
+  const HomePage({Key? key, required this.refreshEvents}) : super(key: key);
+
   final String userId = "currentUserId"; // Replace with the actual current user ID
 
   Future<List<DocumentSnapshot>> _fetchRegisteredEvents() async {
@@ -76,10 +81,36 @@ class HomePage extends StatelessWidget {
                   itemCount: events.length,
                   itemBuilder: (context, index) {
                     final event = events[index];
+                    final documentId = event.id;
+                    final Timestamp? startingTimestamp = event['startingTime'];
+                    final startingTime = startingTimestamp?.toDate();
+
                     return EventCard(
-                      title: event['eventName'],
-                      description: event['summary'],
-                      imageBase64: event['imageBase64'], // Optional
+                      documentId: documentId,
+                      title: event['eventName'] ?? 'No Title',
+                      summary: event['summary'] ?? 'No Summary',
+                      host: event['eventHost'] ?? 'Unknown Host',
+                      startingTime: startingTime,
+                      quota: event['quota'] ?? 0,
+                      imageBase64: event['imageBase64'],
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EventDetailsScreen(
+                              isAdmin: false,
+                              documentId: documentId,
+                              eventTitle: event['eventName'] ?? 'No Title',
+                              summary: event['summary'] ?? 'No Summary',
+                              eventHost: event['eventHost'] ?? 'Unknown Host',
+                              startingTime: startingTime,
+                              quota: event['quota'] ?? 0,
+                              imageBase64: event['imageBase64'],
+                              onEventUpdated: refreshEvents,
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 );
@@ -94,14 +125,23 @@ class HomePage extends StatelessWidget {
 
 class EventCard extends StatelessWidget {
   final String title;
-  final String description;
-  final String? imageBase64; // Optional for displaying an image
+  final String summary;
+  final String host;
+  final DateTime? startingTime;
+  final int quota;
+  final String? imageBase64;
+  final VoidCallback onTap;
 
   const EventCard({
     Key? key,
     required this.title,
-    required this.description,
+    required this.summary,
+    required this.host,
+    required this.startingTime,
+    required this.quota,
     this.imageBase64,
+    required this.onTap,
+    required String documentId,
   }) : super(key: key);
 
   @override
@@ -121,10 +161,21 @@ class EventCard extends StatelessWidget {
               : Container(
             width: 50,
             height: 50,
-            color: Colors.grey[300], // Placeholder for image
+            color: Colors.grey[300],
           ),
           title: Text(title),
-          subtitle: Text(description),
+          subtitle: Text(
+            summary,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: Text(
+            startingTime != null
+                ? '${startingTime!.day}-${startingTime!.month}-${startingTime!.year} ${startingTime!.hour}:${startingTime!.minute}'
+                : 'No Time',
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          onTap: onTap,
         ),
       ),
     );

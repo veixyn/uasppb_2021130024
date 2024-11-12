@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uasppb_2021130024/screens/event_details.dart';
 
 void main() {
   runApp(FinishedEventsScreen());
@@ -19,6 +23,17 @@ class FinishedEventsScreen extends StatelessWidget {
 }
 
 class HomePage extends StatelessWidget {
+  Future<List<DocumentSnapshot>> _fetchFinishedEvents() async {
+    final currentTime = DateTime.now();
+
+    final finishedEvents = await FirebaseFirestore.instance
+        .collection('events')
+        .where('startingTime', isLessThanOrEqualTo: currentTime)
+        .get();
+
+    return finishedEvents.docs;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -35,40 +50,87 @@ class HomePage extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: 4, // You can increase or decrease this count
-              itemBuilder: (context, index) {
-                return EventCard();
+            child: FutureBuilder<List<DocumentSnapshot>>(
+              future: _fetchFinishedEvents(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return const Center(child: Text("Error loading events"));
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(child: Text("No finished events"));
+                }
+
+                final events = snapshot.data!;
+                return ListView.builder(
+                  itemCount: events.length,
+                  itemBuilder: (context, index) {
+                    final event = events[index];
+                    final documentId = event.id;
+                    final Timestamp? startingTimestamp = event['startingTime'];
+                    final startingTime = startingTimestamp?.toDate();
+
+                    return EventCard(
+                      documentId: documentId,
+                      title: event['eventName'] ?? 'No Title',
+                      summary: event['summary'] ?? 'No Summary',
+                      host: event['eventHost'] ?? 'Unknown Host',
+                      startingTime: startingTime,
+                      quota: event['quota'] ?? 0,
+                      imageBase64: event['imageBase64'],
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EventDetailsScreen(
+                              isAdmin: false,
+                              documentId: documentId,
+                              eventTitle: event['eventName'] ?? 'No Title',
+                              summary: event['summary'] ?? 'No Summary',
+                              eventHost: event['eventHost'] ?? 'Unknown Host',
+                              startingTime: startingTime,
+                              quota: event['quota'] ?? 0,
+                              imageBase64: event['imageBase64'],
+                              onEventUpdated: () {},
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
               },
             ),
           ),
         ],
       ),
-      // bottomNavigationBar: BottomNavigationBar(
-      //   currentIndex: 1,
-      //   onTap: (int index) {
-      //     // Handle navigation
-      //   },
-      //   items: [
-      //     const BottomNavigationBarItem(
-      //       icon: Icon(Icons.event_available),
-      //       label: 'Upcoming',
-      //     ),
-      //     const BottomNavigationBarItem(
-      //       icon: Icon(Icons.check),
-      //       label: 'Finished',
-      //     ),
-      //     const BottomNavigationBarItem(
-      //       icon: Icon(Icons.event),
-      //       label: 'My Events',
-      //     ),
-      //   ],
-      // ),
     );
   }
 }
 
 class EventCard extends StatelessWidget {
+  final String title;
+  final String summary;
+  final String host;
+  final DateTime? startingTime;
+  final int quota;
+  final String? imageBase64;
+  final VoidCallback onTap;
+
+  const EventCard({
+    Key? key,
+    required this.title,
+    required this.summary,
+    required this.host,
+    required this.startingTime,
+    required this.quota,
+    this.imageBase64,
+    required this.onTap,
+    required String documentId,
+  }) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -76,14 +138,31 @@ class EventCard extends StatelessWidget {
       child: Card(
         elevation: 2.0,
         child: ListTile(
-          leading: Container(
+          leading: imageBase64 != null
+              ? Image.memory(
+            base64Decode(imageBase64!),
             width: 50,
             height: 50,
-            color: Colors.grey[300], // Placeholder for image
+            fit: BoxFit.cover,
+          )
+              : Container(
+            width: 50,
+            height: 50,
+            color: Colors.grey[300],
           ),
-          title: const Text('Event Title'),
-          subtitle: const Text(
-              'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'),
+          title: Text(title),
+          subtitle: Text(
+            summary,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: Text(
+            startingTime != null
+                ? '${startingTime!.day}-${startingTime!.month}-${startingTime!.year} ${startingTime!.hour}:${startingTime!.minute}'
+                : 'No Time',
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          onTap: onTap,
         ),
       ),
     );

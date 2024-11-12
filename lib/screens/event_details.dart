@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:uasppb_2021130024/screens/edit_event_screen.dart';
 
@@ -39,7 +40,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   String? imageBase64;
 
   bool isRegistered = false; // Track registration status
-  String userId = "currentUserId"; // Replace with actual current user ID
+  String? userId; // Store actual user ID
 
   @override
   void initState() {
@@ -52,7 +53,59 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     summary = widget.summary;
     imageBase64 = widget.imageBase64;
 
-    _checkRegistrationStatus();
+    _fetchCurrentUserId();
+  }
+
+  Future<void> _fetchCurrentUserId() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      setState(() {
+        userId = user.uid; // Set the actual user ID
+      });
+      _checkRegistrationStatus();
+    }
+  }
+
+  Future<void> _checkRegistrationStatus() async {
+    if (userId != null) {
+      final registration = await FirebaseFirestore.instance
+          .collection('registrations')
+          .where('userId', isEqualTo: userId)
+          .where('eventId', isEqualTo: widget.documentId)
+          .get();
+      setState(() {
+        isRegistered = registration.docs.isNotEmpty;
+      });
+    }
+  }
+
+  Future<void> _registerForEvent() async {
+    if (userId != null) {
+      await FirebaseFirestore.instance.collection('registrations').add({
+        'userId': userId,
+        'eventId': widget.documentId,
+      });
+      setState(() {
+        isRegistered = true;
+      });
+    }
+  }
+
+  Future<void> _cancelRegistration() async {
+    if (userId != null) {
+      final registration = await FirebaseFirestore.instance
+          .collection('registrations')
+          .where('userId', isEqualTo: userId)
+          .where('eventId', isEqualTo: widget.documentId)
+          .get();
+
+      if (registration.docs.isNotEmpty) {
+        await registration.docs.first.reference.delete();
+      }
+      setState(() {
+        isRegistered = false;
+      });
+    }
   }
 
   Future<void> _navigateAndEditEvent(BuildContext context) async {
@@ -85,47 +138,15 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     }
   }
 
-  Future<void> _checkRegistrationStatus() async {
-    final registration = await FirebaseFirestore.instance
-        .collection('registrations')
-        .where('userId', isEqualTo: userId)
-        .where('eventId', isEqualTo: widget.documentId)
-        .get();
-    setState(() {
-      isRegistered = registration.docs.isNotEmpty;
-    });
-  }
-
-  Future<void> _registerForEvent() async {
-    await FirebaseFirestore.instance.collection('registrations').add({
-      'userId': userId,
-      'eventId': widget.documentId,
-    });
-    setState(() {
-      isRegistered = true;
-    });
-  }
-
-  Future<void> _cancelRegistration() async {
-    final registration = await FirebaseFirestore.instance
-        .collection('registrations')
-        .where('userId', isEqualTo: userId)
-        .where('eventId', isEqualTo: widget.documentId)
-        .get();
-
-    if (registration.docs.isNotEmpty) {
-      await registration.docs.first.reference.delete();
-    }
-    setState(() {
-      isRegistered = false;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Event Details"),
+        title: Text(eventTitle),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
