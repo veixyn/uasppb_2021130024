@@ -126,6 +126,7 @@ class _HomePageState extends State<HomePage> {
                                     quota: event['quota'] ?? 0,
                                     imageBase64: event['imageBase64'],
                                     onEventUpdated: widget.refreshEvents,
+                                    hideRegistrationButton: false,
                                   ),
                                 ),
                               );

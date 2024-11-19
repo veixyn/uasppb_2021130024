@@ -86,6 +86,7 @@ class HomePage extends StatelessWidget {
                           MaterialPageRoute(
                             builder: (context) => EventDetailsScreen(
                               isAdmin: false,
+                              hideRegistrationButton: true, // Add this line
                               documentId: documentId,
                               eventTitle: event['eventName'] ?? 'No Title',
                               summary: event['summary'] ?? 'No Summary',

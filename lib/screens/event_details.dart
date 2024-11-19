@@ -7,6 +7,7 @@ import 'package:uasppb_2021130024/screens/edit_event_screen.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final bool isAdmin;
+  final bool hideRegistrationButton;
   final String eventTitle;
   final String eventHost;
   final DateTime? startingTime;
@@ -25,6 +26,7 @@ class EventDetailsScreen extends StatefulWidget {
     required this.imageBase64,
     required this.documentId,
     required VoidCallback onEventUpdated,
+    required this.hideRegistrationButton,
   });
 
   @override
@@ -260,11 +262,12 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            widget.isAdmin
-                ? _buildAdminButtons(context)
-                : isRegistered
-                ? _buildCancelButton()
-                : _buildRegisterButton()
+            if (widget.isAdmin)
+              _buildAdminButtons(context)
+            else if (!widget.hideRegistrationButton)
+              isRegistered
+                  ? _buildCancelButton()
+                  : _buildRegisterButton(),
           ],
         ),
       ),

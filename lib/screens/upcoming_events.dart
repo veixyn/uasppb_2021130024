@@ -206,6 +206,7 @@ class UpcomingEvents extends StatelessWidget {
                             quota: event['quota'] ?? 0,
                             imageBase64: event['imageBase64'],
                             onEventUpdated: refreshEvents,
+                            hideRegistrationButton: false,
                           ),
                         ),
                       );
