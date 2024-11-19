@@ -14,17 +14,19 @@ class EventDetailsScreen extends StatefulWidget {
   final String summary;
   final String? imageBase64;
   final String documentId;
+  final VoidCallback onEventUpdated;
 
-  EventDetailsScreen({
+  const EventDetailsScreen({
+    super.key,
     required this.isAdmin,
+    required this.documentId,
     required this.eventTitle,
+    required this.summary,
     required this.eventHost,
     required this.startingTime,
     required this.quota,
-    required this.summary,
-    required this.imageBase64,
-    required this.documentId,
-    required VoidCallback onEventUpdated,
+    this.imageBase64,
+    required this.onEventUpdated,
   });
 
   @override
@@ -41,6 +43,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
   bool isRegistered = false; // Track registration status
   String? userId; // Store actual user ID
+  User? currentUser = FirebaseAuth.instance.currentUser;
 
   @override
   void initState() {
@@ -53,6 +56,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     summary = widget.summary;
     imageBase64 = widget.imageBase64;
 
+    _checkRegistrationStatus();
     _fetchCurrentUserId();
   }
 
@@ -67,45 +71,39 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   }
 
   Future<void> _checkRegistrationStatus() async {
-    if (userId != null) {
-      final registration = await FirebaseFirestore.instance
-          .collection('registrations')
-          .where('userId', isEqualTo: userId)
-          .where('eventId', isEqualTo: widget.documentId)
-          .get();
+    final eventDoc = await FirebaseFirestore.instance
+        .collection('events')
+        .doc(widget.documentId)
+        .get();
+
+    if (eventDoc.exists) {
+      List<dynamic> registrants = eventDoc.data()?['registrants'] ?? [];
       setState(() {
-        isRegistered = registration.docs.isNotEmpty;
+        isRegistered = registrants.contains(currentUser?.uid);
       });
     }
   }
 
-  Future<void> _registerForEvent() async {
-    if (userId != null) {
-      await FirebaseFirestore.instance.collection('registrations').add({
-        'userId': userId,
-        'eventId': widget.documentId,
+  Future<void> _registerOrUnregister() async {
+    final eventRef = FirebaseFirestore.instance.collection('events').doc(widget.documentId);
+
+    if (isRegistered) {
+      await eventRef.update({
+        'registrants': FieldValue.arrayRemove([currentUser?.uid]),
       });
-      setState(() {
-        isRegistered = true;
+    } else {
+      await eventRef.update({
+        'registrants': FieldValue.arrayUnion([currentUser?.uid]),
       });
     }
-  }
 
-  Future<void> _cancelRegistration() async {
-    if (userId != null) {
-      final registration = await FirebaseFirestore.instance
-          .collection('registrations')
-          .where('userId', isEqualTo: userId)
-          .where('eventId', isEqualTo: widget.documentId)
-          .get();
+    setState(() {
+      isRegistered = !isRegistered;
+    });
 
-      if (registration.docs.isNotEmpty) {
-        await registration.docs.first.reference.delete();
-      }
-      setState(() {
-        isRegistered = false;
-      });
-    }
+    widget.onEventUpdated();
+
+    Navigator.pop(context, true);
   }
 
   Future<void> _navigateAndEditEvent(BuildContext context) async {
@@ -204,11 +202,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            widget.isAdmin
-                ? _buildAdminButtons(context)
-                : isRegistered
-                ? _buildCancelButton()
-                : _buildRegisterButton()
+            if (widget.isAdmin)
+              _buildAdminButtons(context) // Display admin buttons if user is admin
+            else
+            // Display the register/unregister button for non-admin users
+              isRegistered ? _buildUnregisterButton() : _buildRegisterButton(),
           ],
         ),
       ),
@@ -284,15 +282,15 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
   Widget _buildRegisterButton() {
     return ElevatedButton(
-      onPressed: _registerForEvent,
-      child: const Text("Register for this Event"),
+      onPressed: _registerOrUnregister, // Call the register/unregister function
+      child: const Text('Register'),
     );
   }
 
-  Widget _buildCancelButton() {
+  Widget _buildUnregisterButton() {
     return ElevatedButton(
-      onPressed: _cancelRegistration,
-      child: const Text("Cancel Registration"),
+      onPressed: _registerOrUnregister, // Call the register/unregister function
+      child: const Text('Unregister'),
     );
   }
 }

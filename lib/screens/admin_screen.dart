@@ -145,7 +145,7 @@ class AllEvents extends StatelessWidget {
         ),
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('events').snapshots(),
+            stream: FirebaseFirestore.instance.collection('events').orderBy('startingTime', descending: true).snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());

@@ -141,6 +141,7 @@ class UpcomingEvents extends StatelessWidget {
     final events = await FirebaseFirestore.instance
         .collection('events')
         .where('startingTime', isGreaterThan: Timestamp.fromDate(now))
+        .orderBy('startingTime', descending: true)
         .get();
 
     return events.docs;

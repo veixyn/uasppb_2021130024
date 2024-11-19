@@ -33,24 +33,31 @@ class HomePage extends StatelessWidget {
     return user?.uid;
   }
 
-  Future<List<DocumentSnapshot>> _fetchRegisteredEvents() async {
-    final userId = await _getCurrentUserId();
-    if (userId == null) return []; // Handle case where user is not logged in
+  // Stream for registered events
+  Stream<List<DocumentSnapshot>> _streamRegisteredEvents() {
+    return FirebaseAuth.instance.authStateChanges().asyncExpand((user) {
+      if (user == null) return Stream.value([]); // Handle the case where no user is logged in
 
-    final registrations = await FirebaseFirestore.instance
-        .collection('registrations')
-        .where('userId', isEqualTo: userId)
-        .get();
+      // Stream the registrations for the logged-in user
+      return FirebaseFirestore.instance
+          .collection('registrations')
+          .where('userId', isEqualTo: user.uid)
+          .snapshots()
+          .asyncMap((registrationSnapshot) async {
+        final eventIds = registrationSnapshot.docs.map((doc) => doc['eventId']).toList();
 
-    final eventIds = registrations.docs.map((doc) => doc['eventId']).toList();
-    if (eventIds.isEmpty) return []; // Return empty list if no registrations
+        if (eventIds.isEmpty) {
+          return [];
+        } else {
+          final eventsSnapshot = await FirebaseFirestore.instance
+              .collection('events')
+              .where(FieldPath.documentId, whereIn: eventIds)
+              .get();
 
-    final events = await FirebaseFirestore.instance
-        .collection('events')
-        .where(FieldPath.documentId, whereIn: eventIds)
-        .get();
-
-    return events.docs;
+          return eventsSnapshot.docs;
+        }
+      });
+    });
   }
 
   @override
@@ -69,8 +76,8 @@ class HomePage extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: FutureBuilder<List<DocumentSnapshot>>(
-              future: _fetchRegisteredEvents(),
+            child: StreamBuilder<List<DocumentSnapshot>>(
+              stream: _streamRegisteredEvents(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -99,8 +106,8 @@ class HomePage extends StatelessWidget {
                       startingTime: startingTime,
                       quota: event['quota'] ?? 0,
                       imageBase64: event['imageBase64'],
-                      onTap: () {
-                        Navigator.push(
+                      onTap: () async {
+                        final shouldRefresh = await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => EventDetailsScreen(
@@ -116,6 +123,10 @@ class HomePage extends StatelessWidget {
                             ),
                           ),
                         );
+
+                        if (shouldRefresh == true) {
+                          refreshEvents(); // Manually trigger the refresh
+                        }
                       },
                     );
                   },
@@ -128,6 +139,7 @@ class HomePage extends StatelessWidget {
     );
   }
 }
+
 
 
 class EventCard extends StatelessWidget {
