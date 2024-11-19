@@ -14,19 +14,17 @@ class EventDetailsScreen extends StatefulWidget {
   final String summary;
   final String? imageBase64;
   final String documentId;
-  final VoidCallback onEventUpdated;
 
-  const EventDetailsScreen({
-    super.key,
+  EventDetailsScreen({
     required this.isAdmin,
-    required this.documentId,
     required this.eventTitle,
-    required this.summary,
     required this.eventHost,
     required this.startingTime,
     required this.quota,
-    this.imageBase64,
-    required this.onEventUpdated,
+    required this.summary,
+    required this.imageBase64,
+    required this.documentId,
+    required VoidCallback onEventUpdated,
   });
 
   @override
@@ -43,7 +41,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
   bool isRegistered = false; // Track registration status
   String? userId; // Store actual user ID
-  User? currentUser = FirebaseAuth.instance.currentUser;
 
   @override
   void initState() {
@@ -56,7 +53,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     summary = widget.summary;
     imageBase64 = widget.imageBase64;
 
-    _checkRegistrationStatus();
     _fetchCurrentUserId();
   }
 
@@ -71,39 +67,101 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   }
 
   Future<void> _checkRegistrationStatus() async {
-    final eventDoc = await FirebaseFirestore.instance
-        .collection('events')
-        .doc(widget.documentId)
-        .get();
+    if (userId != null) {
+      try {
+        final eventSnapshot = await FirebaseFirestore.instance
+            .collection('events')
+            .doc(widget.documentId)
+            .get();
 
-    if (eventDoc.exists) {
-      List<dynamic> registrants = eventDoc.data()?['registrants'] ?? [];
-      setState(() {
-        isRegistered = registrants.contains(currentUser?.uid);
-      });
+        if (eventSnapshot.exists) {
+          final data = eventSnapshot.data();
+          final registrants = data?['registrants'];
+
+          // Ensure registrants is treated as a list or fallback to an empty list
+          final List<dynamic> registrantsList =
+          registrants is List<dynamic> ? registrants : [];
+
+          setState(() {
+            // Check if the user ID exists in the registrants list
+            isRegistered = registrantsList.contains(userId);
+          });
+        } else {
+          setState(() {
+            isRegistered = false;
+          });
+        }
+      } catch (e) {
+        print('Error checking registration status: $e');
+        setState(() {
+          isRegistered = false;
+        });
+      }
     }
   }
 
-  Future<void> _registerOrUnregister() async {
-    final eventRef = FirebaseFirestore.instance.collection('events').doc(widget.documentId);
 
-    if (isRegistered) {
-      await eventRef.update({
-        'registrants': FieldValue.arrayRemove([currentUser?.uid]),
-      });
-    } else {
-      await eventRef.update({
-        'registrants': FieldValue.arrayUnion([currentUser?.uid]),
-      });
+  Future<void> _registerForEvent() async {
+    if (userId != null) {
+      try {
+        final eventDocRef = FirebaseFirestore.instance
+            .collection('events')
+            .doc(widget.documentId);
+
+        await FirebaseFirestore.instance.runTransaction((transaction) async {
+          final snapshot = await transaction.get(eventDocRef);
+
+          if (snapshot.exists) {
+            final data = snapshot.data();
+            final registrants = data?['registrants'];
+
+            // Ensure registrants is treated as a list
+            final List<dynamic> registrantsList =
+            registrants is List<dynamic> ? registrants : [];
+
+            // Add the user ID if not already registered
+            if (!registrantsList.contains(userId)) {
+              registrantsList.add(userId);
+            }
+
+            transaction.update(eventDocRef, {'registrants': registrantsList});
+          }
+        });
+
+        setState(() {
+          isRegistered = true;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Successfully registered!')),
+        );
+      } catch (e) {
+        print('Error registering for event: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to register: $e')),
+        );
+      }
     }
+  }
 
-    setState(() {
-      isRegistered = !isRegistered;
-    });
 
-    widget.onEventUpdated();
+  Future<void> _cancelRegistration(String documentId) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception("User not logged in");
+      }
 
-    Navigator.pop(context, true);
+      // Remove the user UID from the registrants array
+      await FirebaseFirestore.instance.collection('events').doc(documentId).update({
+        'registrants': FieldValue.arrayRemove([user.uid]),
+      });
+
+      print("Successfully unregistered from the event.");
+    } catch (e) {
+      print("Error unregistering from event: $e");
+      throw Exception("Failed to unregister from the event.");
+    }
   }
 
   Future<void> _navigateAndEditEvent(BuildContext context) async {
@@ -202,11 +260,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            if (widget.isAdmin)
-              _buildAdminButtons(context) // Display admin buttons if user is admin
-            else
-            // Display the register/unregister button for non-admin users
-              isRegistered ? _buildUnregisterButton() : _buildRegisterButton(),
+            widget.isAdmin
+                ? _buildAdminButtons(context)
+                : isRegistered
+                ? _buildCancelButton()
+                : _buildRegisterButton()
           ],
         ),
       ),
@@ -282,15 +340,27 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
   Widget _buildRegisterButton() {
     return ElevatedButton(
-      onPressed: _registerOrUnregister, // Call the register/unregister function
-      child: const Text('Register'),
+      onPressed: _registerForEvent,
+      child: const Text("Register for this Event"),
     );
   }
 
-  Widget _buildUnregisterButton() {
+  Widget _buildCancelButton() {
     return ElevatedButton(
-      onPressed: _registerOrUnregister, // Call the register/unregister function
-      child: const Text('Unregister'),
+      onPressed: () async {
+        try {
+          await _cancelRegistration(widget.documentId);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Successfully unregistered from the event")),
+          );
+          Navigator.pop(context, true); // Notify the previous screen to refresh
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Failed to unregister: $e")),
+          );
+        }
+      },
+      child: const Text("Cancel Registration"),
     );
   }
 }

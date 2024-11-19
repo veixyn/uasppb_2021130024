@@ -23,122 +23,132 @@ class MyEventsScreen extends StatelessWidget {
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   final VoidCallback refreshEvents;
 
   const HomePage({Key? key, required this.refreshEvents}) : super(key: key);
 
-  Future<String?> _getCurrentUserId() async {
-    final user = FirebaseAuth.instance.currentUser;
-    return user?.uid;
+  @override
+  _HomePageState createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  late Future<void> _refreshFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshFuture = Future.value(); // Initial placeholder
   }
 
-  // Stream for registered events
+  Future<void> _handleRefresh() async {
+    setState(() {
+      _refreshFuture = Future.delayed(Duration(milliseconds: 500));
+    });
+  }
+
   Stream<List<DocumentSnapshot>> _streamRegisteredEvents() {
     return FirebaseAuth.instance.authStateChanges().asyncExpand((user) {
       if (user == null) return Stream.value([]); // Handle the case where no user is logged in
 
-      // Stream the registrations for the logged-in user
+      // Query the events collection to find events where the user is registered
       return FirebaseFirestore.instance
-          .collection('registrations')
-          .where('userId', isEqualTo: user.uid)
+          .collection('events')
+          .where('registrants', arrayContains: user.uid) // Check if user UID is in the "registrants" array
           .snapshots()
-          .asyncMap((registrationSnapshot) async {
-        final eventIds = registrationSnapshot.docs.map((doc) => doc['eventId']).toList();
-
-        if (eventIds.isEmpty) {
-          return [];
-        } else {
-          final eventsSnapshot = await FirebaseFirestore.instance
-              .collection('events')
-              .where(FieldPath.documentId, whereIn: eventIds)
-              .get();
-
-          return eventsSnapshot.docs;
-        }
-      });
+          .map((eventSnapshot) => eventSnapshot.docs);
     });
   }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'My Events',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-          Expanded(
-            child: StreamBuilder<List<DocumentSnapshot>>(
-              stream: _streamRegisteredEvents(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return const Center(child: Text("Error loading events"));
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text("No registered events"));
-                }
+      body: RefreshIndicator(
+        onRefresh: _handleRefresh,
+        child: FutureBuilder<void>(
+          future: _refreshFuture,
+          builder: (context, snapshot) {
+            return Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'My Events',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: StreamBuilder<List<DocumentSnapshot>>(
+                    stream: _streamRegisteredEvents(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (snapshot.hasError) {
+                        return const Center(child: Text("Error loading events"));
+                      }
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return const Center(child: Text("No registered events"));
+                      }
 
-                final events = snapshot.data!;
-                return ListView.builder(
-                  itemCount: events.length,
-                  itemBuilder: (context, index) {
-                    final event = events[index];
-                    final documentId = event.id;
-                    final Timestamp? startingTimestamp = event['startingTime'];
-                    final startingTime = startingTimestamp?.toDate();
+                      final events = snapshot.data!;
+                      return ListView.builder(
+                        itemCount: events.length,
+                        itemBuilder: (context, index) {
+                          final event = events[index];
+                          final documentId = event.id;
+                          final Timestamp? startingTimestamp = event['startingTime'];
+                          final startingTime = startingTimestamp?.toDate();
 
-                    return EventCard(
-                      documentId: documentId,
-                      title: event['eventName'] ?? 'No Title',
-                      summary: event['summary'] ?? 'No Summary',
-                      host: event['eventHost'] ?? 'Unknown Host',
-                      startingTime: startingTime,
-                      quota: event['quota'] ?? 0,
-                      imageBase64: event['imageBase64'],
-                      onTap: () async {
-                        final shouldRefresh = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => EventDetailsScreen(
-                              isAdmin: false,
-                              documentId: documentId,
-                              eventTitle: event['eventName'] ?? 'No Title',
-                              summary: event['summary'] ?? 'No Summary',
-                              eventHost: event['eventHost'] ?? 'Unknown Host',
-                              startingTime: startingTime,
-                              quota: event['quota'] ?? 0,
-                              imageBase64: event['imageBase64'],
-                              onEventUpdated: refreshEvents,
-                            ),
-                          ),
-                        );
+                          return EventCard(
+                            documentId: documentId,
+                            title: event['eventName'] ?? 'No Title',
+                            summary: event['summary'] ?? 'No Summary',
+                            host: event['eventHost'] ?? 'Unknown Host',
+                            startingTime: startingTime,
+                            quota: event['quota'] ?? 0,
+                            imageBase64: event['imageBase64'],
+                            onTap: () async {
+                              final shouldRefresh = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => EventDetailsScreen(
+                                    isAdmin: false,
+                                    documentId: documentId,
+                                    eventTitle: event['eventName'] ?? 'No Title',
+                                    summary: event['summary'] ?? 'No Summary',
+                                    eventHost: event['eventHost'] ?? 'Unknown Host',
+                                    startingTime: startingTime,
+                                    quota: event['quota'] ?? 0,
+                                    imageBase64: event['imageBase64'],
+                                    onEventUpdated: widget.refreshEvents,
+                                  ),
+                                ),
+                              );
 
-                        if (shouldRefresh == true) {
-                          refreshEvents(); // Manually trigger the refresh
-                        }
-                      },
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
+                              if (shouldRefresh == true) {
+                                widget.refreshEvents(); // Manually trigger the refresh
+                              }
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 }
+
 
 
 
