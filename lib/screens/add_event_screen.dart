@@ -1,9 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:convert';
-import 'dart:typed_data';
+import 'dart:html' as html;
 
 class AddEventForm extends StatefulWidget {
   @override
@@ -20,14 +21,35 @@ class _AddEventFormState extends State<AddEventForm> {
   DateTime? _selectedDateTime;
   Uint8List? _selectedImageBytes;
   final ImagePicker _picker = ImagePicker();
+  String? _selectedEventType;
 
   // Function to select an image from the gallery and convert to bytes
   Future<void> _pickImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _selectedImageBytes = File(pickedFile.path).readAsBytesSync();
+    if (kIsWeb) {
+      // Web-specific logic
+      final html.FileUploadInputElement uploadInput = html.FileUploadInputElement();
+      uploadInput.accept = 'image/*'; // Accept only images
+      uploadInput.click();
+
+      uploadInput.onChange.listen((event) async {
+        final file = uploadInput.files!.first;
+        final reader = html.FileReader();
+
+        reader.readAsArrayBuffer(file);
+        reader.onLoadEnd.listen((event) {
+          setState(() {
+            _selectedImageBytes = reader.result as Uint8List?;
+          });
+        });
       });
+    } else {
+      // Mobile/desktop logic
+      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImageBytes = File(pickedFile.path).readAsBytesSync();
+        });
+      }
     }
   }
 
@@ -60,12 +82,14 @@ class _AddEventFormState extends State<AddEventForm> {
 
   // Function to save event data to Firestore, including the image as base64
   Future<void> _saveEvent() async {
-    if (_formKey.currentState!.validate() && _selectedDateTime != null) {
+    if (_formKey.currentState!.validate() &&
+        _selectedDateTime != null &&
+        _selectedEventType != null) {
       try {
-        // Convert the image to base64 if it exists
-        final imageBase64 = _selectedImageBytes != null ? base64Encode(_selectedImageBytes!) : null;
+        final imageBase64 = _selectedImageBytes != null
+            ? base64Encode(_selectedImageBytes!)
+            : null;
 
-        // Save event data to Firestore
         await FirebaseFirestore.instance.collection('events').add({
           'eventName': _eventNameController.text.trim(),
           'summary': _summaryController.text.trim(),
@@ -73,8 +97,9 @@ class _AddEventFormState extends State<AddEventForm> {
           'city': _cityController.text.trim(),
           'quota': int.parse(_quotaController.text.trim()),
           'registrants': 0,
-          'startingTime': _selectedDateTime,  // Use selected date and time
-          'imageBase64': imageBase64,  // Store image as base64
+          'startingTime': _selectedDateTime,
+          'eventType': _selectedEventType,
+          'imageBase64': imageBase64,
           'createdAt': Timestamp.now(),
         });
 
@@ -85,6 +110,7 @@ class _AddEventFormState extends State<AddEventForm> {
         setState(() {
           _selectedDateTime = null;
           _selectedImageBytes = null;
+          _selectedEventType = null;
         });
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -95,7 +121,28 @@ class _AddEventFormState extends State<AddEventForm> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please select a starting time")),
       );
+    } else if (_selectedEventType == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select an event type")),
+      );
     }
+  }
+
+  InputDecoration _buildInputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: Colors.black54),
+      prefixIcon: Icon(icon, color: Colors.black54),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12.0),
+        borderSide: const BorderSide(color: Colors.black54),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12.0),
+        borderSide: const BorderSide(color: Colors.blue, width: 2.0),
+      ),
+      contentPadding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+    );
   }
 
   @override
@@ -112,7 +159,7 @@ class _AddEventFormState extends State<AddEventForm> {
             children: [
               TextFormField(
                 controller: _eventNameController,
-                decoration: const InputDecoration(labelText: 'Event Name'),
+                decoration: _buildInputDecoration('Event Name', Icons.event),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter event name';
@@ -120,9 +167,10 @@ class _AddEventFormState extends State<AddEventForm> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _summaryController,
-                decoration: const InputDecoration(labelText: 'Summary'),
+                decoration: _buildInputDecoration('Summary', Icons.description),
                 maxLines: 3,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -131,9 +179,10 @@ class _AddEventFormState extends State<AddEventForm> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _eventHostController,
-                decoration: const InputDecoration(labelText: 'Event Host'),
+                decoration: _buildInputDecoration('Event Host', Icons.person),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter event host';
@@ -141,9 +190,10 @@ class _AddEventFormState extends State<AddEventForm> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _cityController,
-                decoration: const InputDecoration(labelText: 'City'),
+                decoration: _buildInputDecoration('City', Icons.location_city),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter city';
@@ -151,9 +201,10 @@ class _AddEventFormState extends State<AddEventForm> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _quotaController,
-                decoration: const InputDecoration(labelText: 'Quota'),
+                decoration: _buildInputDecoration('Quota', Icons.people),
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -166,20 +217,41 @@ class _AddEventFormState extends State<AddEventForm> {
                 },
               ),
               const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedEventType,
+                decoration: _buildInputDecoration('Event Type', Icons.category),
+                items: const [
+                  DropdownMenuItem(value: 'seminar', child: Text('Seminar')),
+                  DropdownMenuItem(value: 'online', child: Text('Online')),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedEventType = value;
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please select an event type';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
               ListTile(
                 title: Text(
                   _selectedDateTime == null
                       ? 'Select Starting Time'
                       : 'Starting Time: ${_selectedDateTime.toString()}',
                 ),
-                trailing: Icon(Icons.calendar_today),
+                trailing: const Icon(Icons.calendar_today),
                 onTap: _pickDateTime,
               ),
               const SizedBox(height: 16),
               Row(
                 children: [
                   _selectedImageBytes != null
-                      ? Image.memory(_selectedImageBytes!, width: 100, height: 100, fit: BoxFit.cover)
+                      ? Image.memory(_selectedImageBytes!,
+                      width: 100, height: 100, fit: BoxFit.cover)
                       : Container(
                     width: 100,
                     height: 100,

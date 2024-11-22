@@ -45,7 +45,7 @@ class AuthWrapper extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Scaffold(
+          return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         } else if (snapshot.hasData) {
@@ -54,7 +54,7 @@ class AuthWrapper extends StatelessWidget {
             future: _getUserRole(user.uid),
             builder: (context, roleSnapshot) {
               if (roleSnapshot.connectionState == ConnectionState.waiting) {
-                return Scaffold(
+                return const Scaffold(
                   body: Center(child: CircularProgressIndicator()),
                 );
               }
