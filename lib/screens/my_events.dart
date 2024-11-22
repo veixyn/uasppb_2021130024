@@ -60,7 +60,6 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -103,6 +102,7 @@ class _HomePageState extends State<HomePage> {
                           final documentId = event.id;
                           final Timestamp? startingTimestamp = event['startingTime'];
                           final startingTime = startingTimestamp?.toDate();
+                          final isEventPast = startingTime == null || startingTime.isBefore(DateTime.now());
 
                           return EventCard(
                             documentId: documentId,
@@ -126,7 +126,7 @@ class _HomePageState extends State<HomePage> {
                                     quota: event['quota'] ?? 0,
                                     imageBase64: event['imageBase64'],
                                     onEventUpdated: widget.refreshEvents,
-                                    hideRegistrationButton: false,
+                                    hideRegistrationButton: isEventPast, // Pass the flag
                                   ),
                                 ),
                               );

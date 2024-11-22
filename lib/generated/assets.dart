@@ -16,6 +16,7 @@ class Assets {
   static const String screensLoginScreen = 'lib/screens/login_screen.dart';
   static const String screensMyEvents = 'lib/screens/my_events.dart';
   static const String screensRegisterScreen = 'lib/screens/register_screen.dart';
+  static const String screensRegisteredUsers = 'lib/screens/registered_users.dart';
   static const String screensUpcomingEvents = 'lib/screens/upcoming_events.dart';
 
 }

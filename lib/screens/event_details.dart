@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:uasppb_2021130024/screens/edit_event_screen.dart';
+import 'package:uasppb_2021130024/screens/registered_users.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final bool isAdmin;
@@ -43,6 +44,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
   bool isRegistered = false; // Track registration status
   String? userId; // Store actual user ID
+  String? userEmail;
 
   @override
   void initState() {
@@ -63,6 +65,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     if (user != null) {
       setState(() {
         userId = user.uid; // Set the actual user ID
+        userEmail = user.email;
       });
       _checkRegistrationStatus();
     }
@@ -279,6 +282,17 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => RegisteredUsersPage(documentId: widget.documentId),
+                ),
+              );
+            },
+            child: const Text("View Registrants")
+        ),
+        ElevatedButton(
           onPressed: () => _navigateAndEditEvent(screenContext),
           child: const Text("Edit"),
         ),
@@ -354,7 +368,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         try {
           await _cancelRegistration(widget.documentId);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Successfully unregistered from the event")),
+            const SnackBar(content: Text("Successfully unregistered from the event")),
           );
           Navigator.pop(context, true); // Notify the previous screen to refresh
         } catch (e) {

@@ -110,7 +110,7 @@ class _HomePageState extends State<HomePage> {
             label: 'All Events',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.check),
+            icon: Icon(Icons.add_task_outlined),
             label: 'Add New Event',
           ),
           BottomNavigationBarItem(
