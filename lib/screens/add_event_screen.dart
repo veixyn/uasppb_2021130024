@@ -96,7 +96,7 @@ class _AddEventFormState extends State<AddEventForm> {
           'eventHost': _eventHostController.text.trim(),
           'city': _cityController.text.trim(),
           'quota': int.parse(_quotaController.text.trim()),
-          'registrants': 0,
+          'registrants': [],
           'startingTime': _selectedDateTime,
           'eventType': _selectedEventType,
           'imageBase64': imageBase64,

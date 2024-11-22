@@ -38,7 +38,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   late String eventTitle;
   late String eventHost;
   DateTime? startingTime;
-  late int quota;
   late String summary;
   String? imageBase64;
 
@@ -53,7 +52,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     eventTitle = widget.eventTitle;
     eventHost = widget.eventHost;
     startingTime = widget.startingTime;
-    quota = widget.quota;
     summary = widget.summary;
     imageBase64 = widget.imageBase64;
 
@@ -105,7 +103,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     }
   }
 
-
   Future<void> _registerForEvent() async {
     if (userId != null) {
       try {
@@ -149,7 +146,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     }
   }
 
-
   Future<void> _cancelRegistration(String documentId) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -158,7 +154,10 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       }
 
       // Remove the user UID from the registrants array
-      await FirebaseFirestore.instance.collection('events').doc(documentId).update({
+      await FirebaseFirestore.instance
+          .collection('events')
+          .doc(documentId)
+          .update({
         'registrants': FieldValue.arrayRemove([user.uid]),
       });
 
@@ -173,16 +172,15 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     final updatedData = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            EditEventScreen(
-              documentId: widget.documentId,
-              currentTitle: eventTitle,
-              currentHost: eventHost,
-              currentStartingTime: startingTime,
-              currentQuota: quota,
-              currentSummary: summary,
-              currentImageBase64: imageBase64,
-            ),
+        builder: (context) => EditEventScreen(
+          documentId: widget.documentId,
+          currentTitle: eventTitle,
+          currentHost: eventHost,
+          currentStartingTime: startingTime,
+          currentQuota: widget.quota,
+          currentSummary: summary,
+          currentImageBase64: imageBase64,
+        ),
       ),
     );
 
@@ -192,7 +190,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         eventTitle = updatedData['eventName'];
         eventHost = updatedData['eventHost'];
         startingTime = updatedData['startingTime'];
-        quota = updatedData['quota'];
         summary = updatedData['summary'];
         imageBase64 = updatedData['imageBase64'];
       });
@@ -245,14 +242,34 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              "${startingTime?.toString()}   |   Quota: $quota",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[700],
-              ),
+            StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('events')
+                  .doc(widget.documentId)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Text(
+                    "Loading...",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14),
+                  );
+                }
+
+                final data = snapshot.data!.data() as Map<String, dynamic>;
+                final registrants = data['registrants'] as List<dynamic>? ?? [];
+                final remainingQuota = widget.quota - registrants.length;
+
+                return Text(
+                  "${startingTime?.toString()}   |   Remaining Quota: $remainingQuota",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700],
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -286,67 +303,56 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => RegisteredUsersPage(documentId: widget.documentId),
+                  builder: (context) =>
+                      RegisteredUsersPage(documentId: widget.documentId),
                 ),
               );
             },
-            child: const Text("View Registrants")
-        ),
+            child: const Text("View Registrants")),
         ElevatedButton(
           onPressed: () => _navigateAndEditEvent(screenContext),
           child: const Text("Edit"),
         ),
         ElevatedButton(
-          onPressed: () {
-            // Show confirmation dialog before deleting
-            showDialog(
-              context: screenContext,
+          onPressed: () async {
+            final confirmed = await showDialog<bool>(
+              context: context,
               builder: (BuildContext context) {
                 return AlertDialog(
-                  title: const Text("Confirm Delete"),
+                  title: const Text('Delete Event'),
                   content: const Text(
-                      "Are you sure you want to delete this event?"),
+                      'Are you sure you want to delete this event?'),
                   actions: [
                     TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      // Close the dialog
-                      child: const Text("Cancel"),
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Cancel'),
                     ),
                     TextButton(
-                      onPressed: () async {
-                        Navigator.of(context)
-                            .pop(); // Close the confirmation dialog
-
-                        // Delete the event from Firestore
-                        try {
-                          await FirebaseFirestore.instance
-                              .collection(
-                              'events') // Replace 'events' with your collection name
-                              .doc(widget.documentId)
-                              .delete();
-
-                          // Show success message
-                          ScaffoldMessenger.of(screenContext).showSnackBar(
-                            const SnackBar(
-                                content: Text("Event deleted successfully!")),
-                          );
-
-                          // Close the EventDetailsScreen after deletion
-                          Navigator.of(screenContext).pop();
-                        } catch (e) {
-                          // Show error message if deletion fails
-                          ScaffoldMessenger.of(screenContext).showSnackBar(
-                            SnackBar(
-                                content: Text("Failed to delete event: $e")),
-                          );
-                        }
-                      },
-                      child: const Text("Delete"),
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Delete'),
                     ),
                   ],
                 );
               },
             );
+
+            if (confirmed == true) {
+              try {
+                await FirebaseFirestore.instance
+                    .collection('events')
+                    .doc(widget.documentId)
+                    .delete();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Event deleted successfully.')),
+                );
+                Navigator.pop(context);
+              } catch (e) {
+                print('Error deleting event: $e');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Failed to delete event.')),
+                );
+              }
+            }
           },
           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
           child: const Text("Delete", style: TextStyle(color: Colors.white),),
@@ -358,26 +364,17 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   Widget _buildRegisterButton() {
     return ElevatedButton(
       onPressed: _registerForEvent,
-      child: const Text("Register for this Event"),
+      child: const Text('Register'),
     );
   }
 
   Widget _buildCancelButton() {
     return ElevatedButton(
       onPressed: () async {
-        try {
-          await _cancelRegistration(widget.documentId);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Successfully unregistered from the event")),
-          );
-          Navigator.pop(context, true); // Notify the previous screen to refresh
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Failed to unregister: $e")),
-          );
-        }
+        await _cancelRegistration(widget.documentId);
+        _checkRegistrationStatus();
       },
-      child: const Text("Cancel Registration"),
+      child: const Text('Cancel Registration'),
     );
   }
 }
