@@ -28,13 +28,11 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
-  // List of screens to navigate to
   final List<Widget> _pages = [
-    AllEvents(refreshEvents: () {  },),
+    AllEvents(refreshEvents: () {}),
     AddEventForm(),
   ];
 
-  // Function to handle navigation
   void _onItemTapped(int index) async {
     if (index == 2) {
       _confirmSignOut(context);
@@ -45,7 +43,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Function to confirm sign-out
   void _confirmSignOut(BuildContext context) {
     showDialog(
       context: context,
@@ -56,7 +53,7 @@ class _HomePageState extends State<HomePage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
               child: const Text("Cancel"),
             ),
@@ -123,29 +120,58 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// "Upcoming Events" Page
-class AllEvents extends StatelessWidget {
+// "Upcoming Events" Page with Search Bar
+class AllEvents extends StatefulWidget {
   final VoidCallback refreshEvents;
 
   const AllEvents({Key? key, required this.refreshEvents}) : super(key: key);
 
   @override
+  _AllEventsState createState() => _AllEventsState();
+}
+
+class _AllEventsState extends State<AllEvents> {
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'All Events',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        // Search Bar
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: TextField(
+            controller: _searchController,
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value.toLowerCase();
+              });
+            },
+            decoration: InputDecoration(
+              hintText: 'Search events...',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8.0),
+                borderSide: BorderSide.none,
+              ),
+              filled: true,
+              fillColor: Colors.grey[200],
             ),
           ),
         ),
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('events').orderBy('startingTime', descending: true).snapshots(),
+            stream: FirebaseFirestore.instance
+                .collection('events')
+                .orderBy('startingTime', descending: true)
+                .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -153,7 +179,21 @@ class AllEvents extends StatelessWidget {
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                 return const Center(child: Text('No events found.'));
               }
-              final events = snapshot.data!.docs;
+
+              final events = snapshot.data!.docs.where((event) {
+                final eventName =
+                (event['eventName'] ?? '').toString().toLowerCase();
+                return eventName.contains(_searchQuery);
+              }).toList();
+
+              if (events.isEmpty) {
+                return const Center(
+                  child: Text(
+                    'No matching events found.',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                );
+              }
 
               return ListView.builder(
                 itemCount: events.length,
@@ -184,7 +224,7 @@ class AllEvents extends StatelessWidget {
                             startingTime: startingTime,
                             quota: event['quota'] ?? 0,
                             imageBase64: event['imageBase64'],
-                            onEventUpdated: refreshEvents,
+                            onEventUpdated: widget.refreshEvents,
                             hideRegistrationButton: false,
                           ),
                         ),
@@ -200,6 +240,7 @@ class AllEvents extends StatelessWidget {
     );
   }
 }
+
 
 class EventCard extends StatelessWidget {
   final String title;

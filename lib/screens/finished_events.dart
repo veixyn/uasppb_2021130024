@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uasppb_2021130024/screens/event_details.dart';
@@ -22,8 +21,31 @@ class FinishedEventsScreen extends StatelessWidget {
   }
 }
 
-class HomePage extends StatelessWidget {
-  Future<List<DocumentSnapshot>> _fetchFinishedEvents() async {
+class HomePage extends StatefulWidget {
+  @override
+  _HomePageState createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final TextEditingController _searchController = TextEditingController();
+  List<DocumentSnapshot> _allEvents = [];
+  List<DocumentSnapshot> _filteredEvents = [];
+  bool _isSearching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchFinishedEvents();
+    _searchController.addListener(_filterEvents);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchFinishedEvents() async {
     final currentTime = DateTime.now();
 
     final finishedEvents = await FirebaseFirestore.instance
@@ -31,7 +53,27 @@ class HomePage extends StatelessWidget {
         .where('startingTime', isLessThanOrEqualTo: currentTime)
         .get();
 
-    return finishedEvents.docs;
+    setState(() {
+      _allEvents = finishedEvents.docs;
+      _filteredEvents = finishedEvents.docs; // Initially, all events are shown
+    });
+  }
+
+  void _filterEvents() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredEvents = _allEvents; // Reset to show all events
+        _isSearching = false;
+      } else {
+        _isSearching = true;
+        _filteredEvents = _allEvents.where((event) {
+          final eventName = event['eventName']?.toString().toLowerCase() ?? '';
+          final eventHost = event['eventHost']?.toString().toLowerCase() ?? '';
+          return eventName.contains(query) || eventHost.contains(query);
+        }).toList();
+      }
+    });
   }
 
   @override
@@ -39,6 +81,7 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
+          // Finished Events Header
           const Padding(
             padding: EdgeInsets.all(16.0),
             child: Align(
@@ -49,56 +92,59 @@ class HomePage extends StatelessWidget {
               ),
             ),
           ),
+
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: 'Search events by name or host...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
+            ),
+          ),
+
+          // Events List
           Expanded(
-            child: FutureBuilder<List<DocumentSnapshot>>(
-              future: _fetchFinishedEvents(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return const Center(child: Text("Error loading events"));
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text("No finished events"));
-                }
+            child: _filteredEvents.isEmpty
+                ? const Center(child: Text("No matching events found"))
+                : ListView.builder(
+              itemCount: _filteredEvents.length,
+              itemBuilder: (context, index) {
+                final event = _filteredEvents[index];
+                final documentId = event.id;
+                final Timestamp? startingTimestamp = event['startingTime'];
+                final startingTime = startingTimestamp?.toDate();
 
-                final events = snapshot.data!;
-                return ListView.builder(
-                  itemCount: events.length,
-                  itemBuilder: (context, index) {
-                    final event = events[index];
-                    final documentId = event.id;
-                    final Timestamp? startingTimestamp = event['startingTime'];
-                    final startingTime = startingTimestamp?.toDate();
-
-                    return EventCard(
-                      documentId: documentId,
-                      title: event['eventName'] ?? 'No Title',
-                      summary: event['summary'] ?? 'No Summary',
-                      host: event['eventHost'] ?? 'Unknown Host',
-                      startingTime: startingTime,
-                      quota: event['quota'] ?? 0,
-                      imageBase64: event['imageBase64'],
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => EventDetailsScreen(
-                              isAdmin: false,
-                              hideRegistrationButton: true, // Add this line
-                              documentId: documentId,
-                              eventTitle: event['eventName'] ?? 'No Title',
-                              summary: event['summary'] ?? 'No Summary',
-                              eventHost: event['eventHost'] ?? 'Unknown Host',
-                              startingTime: startingTime,
-                              quota: event['quota'] ?? 0,
-                              imageBase64: event['imageBase64'],
-                              onEventUpdated: () {},
-                            ),
-                          ),
-                        );
-                      },
+                return EventCard(
+                  documentId: documentId,
+                  title: event['eventName'] ?? 'No Title',
+                  summary: event['summary'] ?? 'No Summary',
+                  host: event['eventHost'] ?? 'Unknown Host',
+                  startingTime: startingTime,
+                  quota: event['quota'] ?? 0,
+                  imageBase64: event['imageBase64'],
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EventDetailsScreen(
+                          isAdmin: false,
+                          hideRegistrationButton: true, // Add this line
+                          documentId: documentId,
+                          eventTitle: event['eventName'] ?? 'No Title',
+                          summary: event['summary'] ?? 'No Summary',
+                          eventHost: event['eventHost'] ?? 'Unknown Host',
+                          startingTime: startingTime,
+                          quota: event['quota'] ?? 0,
+                          imageBase64: event['imageBase64'],
+                          onEventUpdated: () {},
+                        ),
+                      ),
                     );
                   },
                 );

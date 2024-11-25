@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -36,7 +35,7 @@ class _HomePageState extends State<HomePage> {
 
   // List of screens to navigate to
   final List<Widget> _pages = [
-    UpcomingEvents(refreshEvents: () {  },),
+    UpcomingEvents(refreshEvents: () {}),
     FinishedEventsScreen(),
     MyEventsScreen(),
   ];
@@ -54,7 +53,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-// Function to confirm sign-out
+  // Function to confirm sign-out
   void _confirmSignOut(BuildContext context) {
     showDialog(
       context: context,
@@ -82,7 +81,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-// Function to perform the sign-out
+  // Function to perform the sign-out
   Future<void> _signOut(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     // Navigate back to the LoginScreen
@@ -100,7 +99,6 @@ class _HomePageState extends State<HomePage> {
         title: const Text('Dicoding Events'),
       ),
       body: _pages[_selectedIndex], // Display the selected page
-
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.grey,
@@ -130,12 +128,35 @@ class _HomePageState extends State<HomePage> {
 }
 
 // "Upcoming Events" Page
-class UpcomingEvents extends StatelessWidget {
+class UpcomingEvents extends StatefulWidget {
   final VoidCallback refreshEvents;
 
   const UpcomingEvents({Key? key, required this.refreshEvents}) : super(key: key);
 
-  Future<List<DocumentSnapshot>> _fetchUpcomingEvents() async {
+  @override
+  _UpcomingEventsState createState() => _UpcomingEventsState();
+}
+
+class _UpcomingEventsState extends State<UpcomingEvents> {
+  final TextEditingController _searchController = TextEditingController();
+  List<DocumentSnapshot> _allEvents = [];
+  List<DocumentSnapshot> _filteredEvents = [];
+  bool _isSearching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUpcomingEvents();
+    _searchController.addListener(_filterEvents);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchUpcomingEvents() async {
     final now = DateTime.now();
 
     final events = await FirebaseFirestore.instance
@@ -144,13 +165,34 @@ class UpcomingEvents extends StatelessWidget {
         .orderBy('startingTime', descending: true)
         .get();
 
-    return events.docs;
+    setState(() {
+      _allEvents = events.docs;
+      _filteredEvents = events.docs; // Initially, all events are shown
+    });
+  }
+
+  void _filterEvents() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredEvents = _allEvents; // Reset to show all events
+        _isSearching = false;
+      } else {
+        _isSearching = true;
+        _filteredEvents = _allEvents.where((event) {
+          final eventName = event['eventName']?.toString().toLowerCase() ?? '';
+          final eventHost = event['eventHost']?.toString().toLowerCase() ?? '';
+          return eventName.contains(query) || eventHost.contains(query);
+        }).toList();
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // Upcoming Events Header
         const Padding(
           padding: EdgeInsets.all(16.0),
           child: Align(
@@ -161,56 +203,59 @@ class UpcomingEvents extends StatelessWidget {
             ),
           ),
         ),
+
+        // Search Bar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
+              hintText: 'Search events by name or host...',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+            ),
+          ),
+        ),
+
+        // Events List
         Expanded(
-          child: FutureBuilder<List<DocumentSnapshot>>(
-            future: _fetchUpcomingEvents(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return const Center(child: Text("Error loading events"));
-              }
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Center(child: Text("No upcoming events"));
-              }
+          child: _filteredEvents.isEmpty
+              ? const Center(child: Text("No matching events found"))
+              : ListView.builder(
+            itemCount: _filteredEvents.length,
+            itemBuilder: (context, index) {
+              final event = _filteredEvents[index];
+              final documentId = event.id;
+              final Timestamp? startingTimestamp = event['startingTime'];
+              final startingTime = startingTimestamp?.toDate();
 
-              final events = snapshot.data!;
-              return ListView.builder(
-                itemCount: events.length,
-                itemBuilder: (context, index) {
-                  final event = events[index];
-                  final documentId = event.id;
-                  final Timestamp? startingTimestamp = event['startingTime'];
-                  final startingTime = startingTimestamp?.toDate();
-
-                  return EventCard(
-                    documentId: documentId,
-                    title: event['eventName'] ?? 'No Title',
-                    summary: event['summary'] ?? 'No Summary',
-                    host: event['eventHost'] ?? 'Unknown Host',
-                    startingTime: startingTime,
-                    quota: event['quota'] ?? 0,
-                    imageBase64: event['imageBase64'],
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => EventDetailsScreen(
-                            isAdmin: false,
-                            documentId: documentId,
-                            eventTitle: event['eventName'] ?? 'No Title',
-                            summary: event['summary'] ?? 'No Summary',
-                            eventHost: event['eventHost'] ?? 'Unknown Host',
-                            startingTime: startingTime,
-                            quota: event['quota'] ?? 0,
-                            imageBase64: event['imageBase64'],
-                            onEventUpdated: refreshEvents,
-                            hideRegistrationButton: false,
-                          ),
-                        ),
-                      );
-                    },
+              return EventCard(
+                documentId: documentId,
+                title: event['eventName'] ?? 'No Title',
+                summary: event['summary'] ?? 'No Summary',
+                host: event['eventHost'] ?? 'Unknown Host',
+                startingTime: startingTime,
+                quota: event['quota'] ?? 0,
+                imageBase64: event['imageBase64'],
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EventDetailsScreen(
+                        isAdmin: false,
+                        documentId: documentId,
+                        eventTitle: event['eventName'] ?? 'No Title',
+                        summary: event['summary'] ?? 'No Summary',
+                        eventHost: event['eventHost'] ?? 'Unknown Host',
+                        startingTime: startingTime,
+                        quota: event['quota'] ?? 0,
+                        imageBase64: event['imageBase64'],
+                        onEventUpdated: widget.refreshEvents,
+                        hideRegistrationButton: false,
+                      ),
+                    ),
                   );
                 },
               );
@@ -272,8 +317,7 @@ class EventCard extends StatelessWidget {
           trailing: Text(
             startingTime != null
                 ? '${startingTime!.day}-${startingTime!.month}-${startingTime!.year} ${startingTime!.hour}:${startingTime!.minute}'
-                : 'No Time',
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                : 'No Date',
           ),
           onTap: onTap,
         ),
