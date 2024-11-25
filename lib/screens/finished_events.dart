@@ -31,6 +31,7 @@ class _HomePageState extends State<HomePage> {
   List<DocumentSnapshot> _allEvents = [];
   List<DocumentSnapshot> _filteredEvents = [];
   bool _isSearching = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -55,24 +56,32 @@ class _HomePageState extends State<HomePage> {
 
     setState(() {
       _allEvents = finishedEvents.docs;
-      _filteredEvents = finishedEvents.docs; // Initially, all events are shown
+      _filteredEvents = finishedEvents.docs; // Initially, show all events
+      _isLoading = false;
     });
   }
 
   void _filterEvents() {
     final query = _searchController.text.toLowerCase();
+
     setState(() {
-      if (query.isEmpty) {
-        _filteredEvents = _allEvents; // Reset to show all events
-        _isSearching = false;
-      } else {
-        _isSearching = true;
-        _filteredEvents = _allEvents.where((event) {
-          final eventName = event['eventName']?.toString().toLowerCase() ?? '';
-          final eventHost = event['eventHost']?.toString().toLowerCase() ?? '';
-          return eventName.contains(query) || eventHost.contains(query);
-        }).toList();
-      }
+      _isSearching = true; // Show the loading indicator during filtering
+    });
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      setState(() {
+        if (query.isEmpty) {
+          _filteredEvents = _allEvents; // Reset to show all events
+          _isSearching = false;
+        } else {
+          _filteredEvents = _allEvents.where((event) {
+            final eventName = event['eventName']?.toString().toLowerCase() ?? '';
+            final eventHost = event['eventHost']?.toString().toLowerCase() ?? '';
+            return eventName.contains(query) || eventHost.contains(query);
+          }).toList();
+          _isSearching = false; // Hide the loading indicator once filtering is done
+        }
+      });
     });
   }
 
@@ -108,10 +117,20 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // Events List
+          // Events List or CircularProgressIndicator
           Expanded(
-            child: _filteredEvents.isEmpty
-                ? const Center(child: Text("No matching events found"))
+            child: _isLoading
+                ? const Center(
+              child: CircularProgressIndicator(),
+            )
+                : _isSearching
+                ? const Center(
+              child: CircularProgressIndicator(),
+            )
+                : _filteredEvents.isEmpty
+                ? const Center(
+              child: Text("No matching events found"),
+            )
                 : ListView.builder(
               itemCount: _filteredEvents.length,
               itemBuilder: (context, index) {

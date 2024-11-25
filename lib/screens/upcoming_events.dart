@@ -142,6 +142,7 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
   List<DocumentSnapshot> _allEvents = [];
   List<DocumentSnapshot> _filteredEvents = [];
   bool _isSearching = false;
+  bool _isLoading = true; // Added loading state
 
   @override
   void initState() {
@@ -157,18 +158,30 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
   }
 
   Future<void> _fetchUpcomingEvents() async {
-    final now = DateTime.now();
-
-    final events = await FirebaseFirestore.instance
-        .collection('events')
-        .where('startingTime', isGreaterThan: Timestamp.fromDate(now))
-        .orderBy('startingTime', descending: true)
-        .get();
-
     setState(() {
-      _allEvents = events.docs;
-      _filteredEvents = events.docs; // Initially, all events are shown
+      _isLoading = true; // Start loading
     });
+
+    try {
+      final now = DateTime.now();
+      final events = await FirebaseFirestore.instance
+          .collection('events')
+          .where('startingTime', isGreaterThan: Timestamp.fromDate(now))
+          .orderBy('startingTime', descending: true)
+          .get();
+
+      setState(() {
+        _allEvents = events.docs;
+        _filteredEvents = events.docs; // Initially, all events are shown
+      });
+    } catch (e) {
+      // Handle errors appropriately (e.g., log them or display a message)
+      print("Error fetching events: $e");
+    } finally {
+      setState(() {
+        _isLoading = false; // Stop loading
+      });
+    }
   }
 
   void _filterEvents() {
@@ -192,7 +205,6 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Upcoming Events Header
         const Padding(
           padding: EdgeInsets.all(16.0),
           child: Align(
@@ -203,8 +215,6 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
             ),
           ),
         ),
-
-        // Search Bar
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: TextField(
@@ -218,11 +228,11 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
             ),
           ),
         ),
-
-        // Events List
         Expanded(
-          child: _filteredEvents.isEmpty
-              ? const Center(child: Text("No matching events found"))
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator()) // Show loading
+              : _filteredEvents.isEmpty
+              ? const Center(child: Text("No events found")) // Show no events message
               : ListView.builder(
             itemCount: _filteredEvents.length,
             itemBuilder: (context, index) {
@@ -266,6 +276,7 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
     );
   }
 }
+
 
 // Reusable EventCard widget
 class EventCard extends StatelessWidget {
