@@ -196,7 +196,7 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
         _filteredEvents = _allEvents.where((event) {
           final eventName = event['eventName']?.toString().toLowerCase() ?? '';
           final eventHost = event['eventHost']?.toString().toLowerCase() ?? '';
-          final eventType = event['eventType']?.toString() ?? '';
+          final eventType = event['eventType']?.toString().toLowerCase() ?? '';
 
           final matchesQuery =
               eventName.contains(query) || eventHost.contains(query);
@@ -246,13 +246,6 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
                   color: Colors.white,
                   border: Border.all(color: Colors.grey),
                   borderRadius: BorderRadius.circular(8.0),
-                  // boxShadow: const [
-                  //   BoxShadow(
-                  //     color: Colors.black12,
-                  //     blurRadius: 4,
-                  //     offset: Offset(2, 2),
-                  //   ),
-                  // ],
                 ),
                 child: DropdownButton<String>(
                   value: _selectedEventType,

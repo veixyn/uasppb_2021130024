@@ -132,7 +132,10 @@ class AllEvents extends StatefulWidget {
 
 class _AllEventsState extends State<AllEvents> {
   String _searchQuery = '';
+  String _selectedEventType = 'All'; // Default to 'All'
   final TextEditingController _searchController = TextEditingController();
+
+  final List<String> _eventTypes = ['All', 'Seminar', 'Online'];
 
   @override
   void dispose() {
@@ -166,6 +169,33 @@ class _AllEventsState extends State<AllEvents> {
             ),
           ),
         ),
+        // Event Type Dropdown
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: DropdownButtonFormField<String>(
+            value: _selectedEventType,
+            items: _eventTypes.map((eventType) {
+              return DropdownMenuItem(
+                value: eventType,
+                child: Text(eventType),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedEventType = value!;
+              });
+            },
+            decoration: InputDecoration(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12.0),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              filled: true,
+              fillColor: Colors.grey[200],
+            ),
+          ),
+        ),
+        // Event List
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
@@ -183,7 +213,12 @@ class _AllEventsState extends State<AllEvents> {
               final events = snapshot.data!.docs.where((event) {
                 final eventName =
                 (event['eventName'] ?? '').toString().toLowerCase();
-                return eventName.contains(_searchQuery);
+                final eventType =
+                (event['eventType'] ?? '').toString().toLowerCase();
+                final matchesSearch = eventName.contains(_searchQuery);
+                final matchesType = _selectedEventType == 'All' ||
+                    eventType == _selectedEventType.toLowerCase();
+                return matchesSearch && matchesType;
               }).toList();
 
               if (events.isEmpty) {
@@ -240,6 +275,7 @@ class _AllEventsState extends State<AllEvents> {
     );
   }
 }
+
 
 
 class EventCard extends StatelessWidget {

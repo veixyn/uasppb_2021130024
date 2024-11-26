@@ -86,12 +86,12 @@ class _HomePageState extends State<HomePage> {
       _isSearching = true;
     });
 
-    Future.delayed(const Duration(milliseconds: 500), () {
+    Future.delayed(const Duration(milliseconds: 1), () {
       setState(() {
         if (query.isEmpty) {
           _filteredEvents = _allEvents.where((event) {
             if (_selectedEventType == 'All') return true;
-            return event['type'] == _selectedEventType;
+            return event['eventType'] == _selectedEventType;
           }).toList();
         } else {
           _filteredEvents = _allEvents.where((event) {
@@ -101,7 +101,7 @@ class _HomePageState extends State<HomePage> {
                 eventName.contains(query) || eventHost.contains(query);
 
             if (_selectedEventType == 'All') return matchesQuery;
-            return matchesQuery && event['type'] == _selectedEventType;
+            return matchesQuery && event['eventType'] == _selectedEventType.toLowerCase();
           }).toList();
         }
         _isSearching = false;
