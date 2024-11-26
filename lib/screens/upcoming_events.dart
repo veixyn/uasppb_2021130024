@@ -142,7 +142,9 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
   List<DocumentSnapshot> _allEvents = [];
   List<DocumentSnapshot> _filteredEvents = [];
   bool _isSearching = false;
-  bool _isLoading = true; // Added loading state
+  bool _isLoading = true;
+
+  String _selectedEventType = 'All'; // Track selected event type
 
   @override
   void initState() {
@@ -159,7 +161,7 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
 
   Future<void> _fetchUpcomingEvents() async {
     setState(() {
-      _isLoading = true; // Start loading
+      _isLoading = true;
     });
 
     try {
@@ -172,14 +174,13 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
 
       setState(() {
         _allEvents = events.docs;
-        _filteredEvents = events.docs; // Initially, all events are shown
+        _filteredEvents = events.docs; // Show all events initially
       });
     } catch (e) {
-      // Handle errors appropriately (e.g., log them or display a message)
       print("Error fetching events: $e");
     } finally {
       setState(() {
-        _isLoading = false; // Stop loading
+        _isLoading = false;
       });
     }
   }
@@ -187,15 +188,22 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
   void _filterEvents() {
     final query = _searchController.text.toLowerCase();
     setState(() {
-      if (query.isEmpty) {
-        _filteredEvents = _allEvents; // Reset to show all events
+      if (query.isEmpty && _selectedEventType == 'All') {
+        _filteredEvents = _allEvents;
         _isSearching = false;
       } else {
         _isSearching = true;
         _filteredEvents = _allEvents.where((event) {
           final eventName = event['eventName']?.toString().toLowerCase() ?? '';
           final eventHost = event['eventHost']?.toString().toLowerCase() ?? '';
-          return eventName.contains(query) || eventHost.contains(query);
+          final eventType = event['eventType']?.toString() ?? '';
+
+          final matchesQuery =
+              eventName.contains(query) || eventHost.contains(query);
+          final matchesType = _selectedEventType == 'All' ||
+              eventType.toLowerCase() == _selectedEventType.toLowerCase();
+
+          return matchesQuery && matchesType;
         }).toList();
       }
     });
@@ -217,22 +225,68 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search),
-              hintText: 'Search events by name or host...',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search),
+                    hintText: 'Search events by name or host...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 8.0),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 1.0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(8.0),
+                  // boxShadow: const [
+                  //   BoxShadow(
+                  //     color: Colors.black12,
+                  //     blurRadius: 4,
+                  //     offset: Offset(2, 2),
+                  //   ),
+                  // ],
+                ),
+                child: DropdownButton<String>(
+                  value: _selectedEventType,
+                  underline: const SizedBox(), // Remove default underline
+                  items: ['All', 'Online', 'Seminar']
+                      .map((type) => DropdownMenuItem(
+                    value: type,
+                    child: Text(type),
+                  ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedEventType = value;
+                      });
+                      _filterEvents(); // Reapply filters
+                    }
+                  },
+                  icon: const Icon(Icons.arrow_drop_down), // Add a drop-down arrow icon
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 16.0,
+                  ),
+                  dropdownColor: Colors.white, // Background color for dropdown items
+                ),
+              ),
+            ],
           ),
         ),
         Expanded(
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator()) // Show loading
+              ? const Center(child: CircularProgressIndicator())
               : _filteredEvents.isEmpty
-              ? const Center(child: Text("No events found")) // Show no events message
+              ? const Center(child: Text("No events found"))
               : ListView.builder(
             itemCount: _filteredEvents.length,
             itemBuilder: (context, index) {
@@ -276,6 +330,7 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
     );
   }
 }
+
 
 
 // Reusable EventCard widget

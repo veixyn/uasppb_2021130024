@@ -32,6 +32,7 @@ class _HomePageState extends State<HomePage> {
   List<DocumentSnapshot> _filteredEvents = [];
   bool _isSearching = false;
   bool _isLoading = true;
+  String _selectedEventType = 'All'; // Default filter type
 
   @override
   void initState() {
@@ -71,16 +72,22 @@ class _HomePageState extends State<HomePage> {
     Future.delayed(const Duration(milliseconds: 500), () {
       setState(() {
         if (query.isEmpty) {
-          _filteredEvents = _allEvents; // Reset to show all events
-          _isSearching = false;
+          _filteredEvents = _allEvents.where((event) {
+            if (_selectedEventType == 'All') return true;
+            return event['type'] == _selectedEventType;
+          }).toList();
         } else {
           _filteredEvents = _allEvents.where((event) {
             final eventName = event['eventName']?.toString().toLowerCase() ?? '';
             final eventHost = event['eventHost']?.toString().toLowerCase() ?? '';
-            return eventName.contains(query) || eventHost.contains(query);
+            final matchesQuery =
+                eventName.contains(query) || eventHost.contains(query);
+
+            if (_selectedEventType == 'All') return matchesQuery;
+            return matchesQuery && event['type'] == _selectedEventType;
           }).toList();
-          _isSearching = false; // Hide the loading indicator once filtering is done
         }
+        _isSearching = false; // Hide the loading indicator once filtering is done
       });
     });
   }
@@ -102,28 +109,64 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // Search Bar
+          // Search Bar and Filter Dropdown
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                hintText: 'Search events by name or host...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.search),
+                      hintText: 'Search events by name or host...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8.0),
+                Container(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 12.0, vertical: 1.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  child: DropdownButton<String>(
+                    value: _selectedEventType,
+                    underline: const SizedBox(), // Remove default underline
+                    items: ['All', 'Online', 'Seminar']
+                        .map((type) => DropdownMenuItem(
+                      value: type,
+                      child: Text(type),
+                    ))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _selectedEventType = value;
+                        });
+                        _filterEvents(); // Reapply filters
+                      }
+                    },
+                    icon: const Icon(Icons.arrow_drop_down), // Add a drop-down arrow icon
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 16.0,
+                    ),
+                    dropdownColor: Colors.white, // Background color for dropdown items
+                  ),
+                ),
+              ],
             ),
           ),
 
           // Events List or CircularProgressIndicator
           Expanded(
             child: _isLoading
-                ? const Center(
-              child: CircularProgressIndicator(),
-            )
-                : _isSearching
                 ? const Center(
               child: CircularProgressIndicator(),
             )
@@ -136,7 +179,8 @@ class _HomePageState extends State<HomePage> {
               itemBuilder: (context, index) {
                 final event = _filteredEvents[index];
                 final documentId = event.id;
-                final Timestamp? startingTimestamp = event['startingTime'];
+                final Timestamp? startingTimestamp =
+                event['startingTime'];
                 final startingTime = startingTimestamp?.toDate();
 
                 return EventCard(
@@ -153,11 +197,15 @@ class _HomePageState extends State<HomePage> {
                       MaterialPageRoute(
                         builder: (context) => EventDetailsScreen(
                           isAdmin: false,
-                          hideRegistrationButton: true, // Add this line
+                          hideRegistrationButton:
+                          true, // Add this line
                           documentId: documentId,
-                          eventTitle: event['eventName'] ?? 'No Title',
-                          summary: event['summary'] ?? 'No Summary',
-                          eventHost: event['eventHost'] ?? 'Unknown Host',
+                          eventTitle:
+                          event['eventName'] ?? 'No Title',
+                          summary:
+                          event['summary'] ?? 'No Summary',
+                          eventHost:
+                          event['eventHost'] ?? 'Unknown Host',
                           startingTime: startingTime,
                           quota: event['quota'] ?? 0,
                           imageBase64: event['imageBase64'],
@@ -175,6 +223,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
 
 class EventCard extends StatelessWidget {
   final String title;

@@ -18,7 +18,7 @@ class MyEventsScreen extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: HomePage(refreshEvents: () {  },),
+      home: HomePage(refreshEvents: () {}),
     );
   }
 }
@@ -34,30 +34,86 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late Future<void> _refreshFuture;
+  final TextEditingController _searchController = TextEditingController();
+  List<DocumentSnapshot> _allEvents = [];
+  List<DocumentSnapshot> _filteredEvents = [];
+  bool _isSearching = false;
+  bool _isLoading = true;
+  String _selectedEventType = 'All';
 
   @override
   void initState() {
     super.initState();
-    _refreshFuture = Future.value(); // Initial placeholder
+    _refreshFuture = Future.value();
+    _fetchRegisteredEvents();
+    _searchController.addListener(_filterEvents);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchRegisteredEvents() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      setState(() {
+        _allEvents = [];
+        _filteredEvents = [];
+        _isLoading = false;
+      });
+      return;
+    }
+
+    final eventsSnapshot = await FirebaseFirestore.instance
+        .collection('events')
+        .where('registrants', arrayContains: user.uid)
+        .get();
+
+    setState(() {
+      _allEvents = eventsSnapshot.docs;
+      _filteredEvents = eventsSnapshot.docs;
+      _isLoading = false;
+    });
+  }
+
+  void _filterEvents() {
+    final query = _searchController.text.toLowerCase();
+
+    setState(() {
+      _isSearching = true;
+    });
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      setState(() {
+        if (query.isEmpty) {
+          _filteredEvents = _allEvents.where((event) {
+            if (_selectedEventType == 'All') return true;
+            return event['type'] == _selectedEventType;
+          }).toList();
+        } else {
+          _filteredEvents = _allEvents.where((event) {
+            final eventName = event['eventName']?.toString().toLowerCase() ?? '';
+            final eventHost = event['eventHost']?.toString().toLowerCase() ?? '';
+            final matchesQuery =
+                eventName.contains(query) || eventHost.contains(query);
+
+            if (_selectedEventType == 'All') return matchesQuery;
+            return matchesQuery && event['type'] == _selectedEventType;
+          }).toList();
+        }
+        _isSearching = false;
+      });
+    });
   }
 
   Future<void> _handleRefresh() async {
     setState(() {
-      _refreshFuture = Future.delayed(Duration(milliseconds: 500));
+      _refreshFuture = Future.delayed(const Duration(milliseconds: 500));
     });
-  }
-
-  Stream<List<DocumentSnapshot>> _streamRegisteredEvents() {
-    return FirebaseAuth.instance.authStateChanges().asyncExpand((user) {
-      if (user == null) return Stream.value([]); // Handle the case where no user is logged in
-
-      // Query the events collection to find events where the user is registered
-      return FirebaseFirestore.instance
-          .collection('events')
-          .where('registrants', arrayContains: user.uid) // Check if user UID is in the "registrants" array
-          .snapshots()
-          .map((eventSnapshot) => eventSnapshot.docs);
-    });
+    _fetchRegisteredEvents();
   }
 
   @override
@@ -65,90 +121,132 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: _handleRefresh,
-        child: FutureBuilder<void>(
-          future: _refreshFuture,
-          builder: (context, snapshot) {
-            return Column(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'My Events',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        child: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'My Events',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search),
+                        hintText: 'Search events by name or host...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: StreamBuilder<List<DocumentSnapshot>>(
-                    stream: _streamRegisteredEvents(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        return const Center(child: Text("Error loading events"));
-                      }
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return const Center(child: Text("No registered events"));
-                      }
+                  const SizedBox(width: 8.0),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12.0, vertical: 1.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: DropdownButton<String>(
+                      value: _selectedEventType,
+                      underline: const SizedBox(),
+                      items: ['All', 'Online', 'Seminar']
+                          .map((type) => DropdownMenuItem(
+                        value: type,
+                        child: Text(type),
+                      ))
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _selectedEventType = value;
+                          });
+                          _filterEvents();
+                        }
+                      },
+                      icon: const Icon(Icons.arrow_drop_down),
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 16.0,
+                      ),
+                      dropdownColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _filteredEvents.isEmpty
+                  ? const Center(child: Text("No matching events found"))
+                  : ListView.builder(
+                itemCount: _filteredEvents.length,
+                itemBuilder: (context, index) {
+                  final event = _filteredEvents[index];
+                  final documentId = event.id;
+                  final Timestamp? startingTimestamp =
+                  event['startingTime'];
+                  final startingTime = startingTimestamp?.toDate();
 
-                      final events = snapshot.data!;
-                      return ListView.builder(
-                        itemCount: events.length,
-                        itemBuilder: (context, index) {
-                          final event = events[index];
-                          final documentId = event.id;
-                          final Timestamp? startingTimestamp = event['startingTime'];
-                          final startingTime = startingTimestamp?.toDate();
-                          final isEventPast = startingTime == null || startingTime.isBefore(DateTime.now());
-
-                          return EventCard(
+                  return EventCard(
+                    documentId: documentId,
+                    title: event['eventName'] ?? 'No Title',
+                    summary: event['summary'] ?? 'No Summary',
+                    host: event['eventHost'] ?? 'Unknown Host',
+                    startingTime: startingTime,
+                    quota: event['quota'] ?? 0,
+                    imageBase64: event['imageBase64'],
+                    onTap: () async {
+                      final shouldRefresh = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EventDetailsScreen(
+                            isAdmin: false,
                             documentId: documentId,
-                            title: event['eventName'] ?? 'No Title',
-                            summary: event['summary'] ?? 'No Summary',
-                            host: event['eventHost'] ?? 'Unknown Host',
+                            eventTitle:
+                            event['eventName'] ?? 'No Title',
+                            summary:
+                            event['summary'] ?? 'No Summary',
+                            eventHost:
+                            event['eventHost'] ?? 'Unknown Host',
                             startingTime: startingTime,
                             quota: event['quota'] ?? 0,
                             imageBase64: event['imageBase64'],
-                            onTap: () async {
-                              final shouldRefresh = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => EventDetailsScreen(
-                                    isAdmin: false,
-                                    documentId: documentId,
-                                    eventTitle: event['eventName'] ?? 'No Title',
-                                    summary: event['summary'] ?? 'No Summary',
-                                    eventHost: event['eventHost'] ?? 'Unknown Host',
-                                    startingTime: startingTime,
-                                    quota: event['quota'] ?? 0,
-                                    imageBase64: event['imageBase64'],
-                                    onEventUpdated: widget.refreshEvents,
-                                    hideRegistrationButton: isEventPast, // Pass the flag
-                                  ),
-                                ),
-                              );
-
-                              if (shouldRefresh == true) {
-                                widget.refreshEvents(); // Manually trigger the refresh
-                              }
-                            },
-                          );
-                        },
+                            onEventUpdated: widget.refreshEvents,
+                            hideRegistrationButton: startingTime !=
+                                null &&
+                                startingTime.isBefore(DateTime.now()),
+                          ),
+                        ),
                       );
+
+                      if (shouldRefresh == true) {
+                        widget.refreshEvents();
+                      }
                     },
-                  ),
-                ),
-              ],
-            );
-          },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
+
 
 
 
