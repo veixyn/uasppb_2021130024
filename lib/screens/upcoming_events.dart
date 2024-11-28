@@ -3,26 +3,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:uasppb_2021130024/component/event_card.dart';
+import 'package:uasppb_2021130024/provider/theme_provider.dart';
 import 'package:uasppb_2021130024/screens/event_details.dart';
 import 'package:uasppb_2021130024/screens/finished_events.dart';
 import 'package:uasppb_2021130024/screens/login_screen.dart';
 import 'package:uasppb_2021130024/screens/my_events.dart';
-
-void main() {
-  runApp(UpcomingEventsScreen());
-}
+import 'package:provider/provider.dart';
 
 class UpcomingEventsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Dicoding Events',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: HomePage(),
-    );
+    return HomePage();
   }
 }
 
@@ -34,27 +25,22 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
-  // List of screens to navigate to
   final List<Widget> _pages = [
     UpcomingEvents(refreshEvents: () {}),
     FinishedEventsScreen(),
     MyEventsScreen(),
   ];
 
-  // Function to handle navigation
   void _onItemTapped(int index) async {
     if (index == 3) {
-      // Show a confirmation dialog before sign-out
       _confirmSignOut(context);
     } else {
-      // Update selected index for other items
       setState(() {
         _selectedIndex = index;
       });
     }
   }
 
-  // Function to confirm sign-out
   void _confirmSignOut(BuildContext context) {
     showDialog(
       context: context,
@@ -65,14 +51,14 @@ class _HomePageState extends State<HomePage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
               child: const Text("Cancel"),
             ),
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-                _signOut(context); // Proceed with sign-out
+                Navigator.of(context).pop();
+                _signOut(context);
               },
               child: const Text("Sign Out"),
             ),
@@ -82,10 +68,8 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Function to perform the sign-out
   Future<void> _signOut(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
-    // Navigate back to the LoginScreen
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => LoginScreen()),
@@ -95,14 +79,27 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dicoding Events'),
+        actions: [
+          IconButton(
+            icon: Icon(
+              isDarkMode ? Icons.lightbulb : Icons.lightbulb_outline,
+            ),
+            onPressed: () {
+              Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+            },
+          ),
+        ],
       ),
       body: _pages[_selectedIndex], // Display the selected page
       bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.grey,
+        selectedItemColor: isDarkMode ? Colors.white : Colors.black,
+        unselectedItemColor: isDarkMode ? Colors.grey[600] : Colors.grey,
+        backgroundColor: isDarkMode ? Colors.black : Colors.white,
         currentIndex: _selectedIndex, // Track the selected index
         onTap: _onItemTapped, // Handle item tap
         items: const [
@@ -324,64 +321,3 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
     );
   }
 }
-
-
-
-// Reusable EventCard widget
-// class EventCard extends StatelessWidget {
-//   final String title;
-//   final String summary;
-//   final String host;
-//   final DateTime? startingTime;
-//   final int quota;
-//   final String? imageBase64;
-//   final VoidCallback onTap;
-//
-//   const EventCard({
-//     Key? key,
-//     required this.title,
-//     required this.summary,
-//     required this.host,
-//     required this.startingTime,
-//     required this.quota,
-//     this.imageBase64,
-//     required this.onTap,
-//     required String documentId,
-//   }) : super(key: key);
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return Padding(
-//       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-//       child: Card(
-//         elevation: 2.0,
-//         child: ListTile(
-//           leading: imageBase64 != null
-//               ? Image.memory(
-//             base64Decode(imageBase64!),
-//             width: 50,
-//             height: 50,
-//             fit: BoxFit.cover,
-//           )
-//               : Container(
-//             width: 50,
-//             height: 50,
-//             color: Colors.grey[300],
-//           ),
-//           title: Text(title),
-//           subtitle: Text(
-//             summary,
-//             maxLines: 2,
-//             overflow: TextOverflow.ellipsis,
-//           ),
-//           trailing: Text(
-//             startingTime != null
-//                 ? '${startingTime!.day}-${startingTime!.month}-${startingTime!.year} ${startingTime!.hour}:${startingTime!.minute}'
-//                 : 'No Date',
-//           ),
-//           onTap: onTap,
-//         ),
-//       ),
-//     );
-//   }
-// }

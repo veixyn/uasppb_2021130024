@@ -44,7 +44,7 @@ class EventCard extends StatelessWidget {
               : Container(
             width: 50,
             height: 50,
-            color: Colors.grey[300],
+            color: Colors.grey[500],
           ),
           title: Text(title),
           subtitle: Text(

@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:uasppb_2021130024/component/event_card.dart';
+import 'package:uasppb_2021130024/provider/theme_provider.dart';
 import 'package:uasppb_2021130024/screens/add_event_screen.dart';
 import 'package:uasppb_2021130024/screens/event_details.dart';
 import 'package:uasppb_2021130024/screens/login_screen.dart';
@@ -9,14 +12,7 @@ import 'package:uasppb_2021130024/screens/login_screen.dart';
 class AdminScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Dicoding Events',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: HomePage(),
-    );
+    return HomePage();
   }
 }
 
@@ -85,20 +81,30 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dicoding Events'),
+        actions: [
+          IconButton(
+            icon: Icon(
+              isDarkMode ? Icons.lightbulb : Icons.lightbulb_outline,
+            ),
+            onPressed: () {
+              Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+            },
+          ),
+        ],
       ),
       body: IndexedStack(
         index: _selectedIndex,
-        children: [
-          AllEvents(refreshEvents: _refreshEvents),
-          AddEventForm(),
-        ],
+        children: _pages,
       ),
       bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.grey,
+        selectedItemColor: isDarkMode ? Colors.white : Colors.black,
+        unselectedItemColor: isDarkMode ? Colors.grey[600] : Colors.grey,
+        backgroundColor: isDarkMode ? Colors.black : Colors.white,
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         items: const [
@@ -119,6 +125,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
 
 // "Upcoming Events" Page with Search Bar
 class AllEvents extends StatefulWidget {
@@ -148,6 +155,7 @@ class _AllEventsState extends State<AllEvents> {
     return Column(
       children: [
         // Search Bar
+        // Search Bar
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: TextField(
@@ -159,17 +167,35 @@ class _AllEventsState extends State<AllEvents> {
             },
             decoration: InputDecoration(
               hintText: 'Search events...',
-              prefixIcon: const Icon(Icons.search),
+              hintStyle: TextStyle(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white70
+                    : Colors.black54,
+              ),
+              prefixIcon: Icon(
+                Icons.search,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white70
+                    : Colors.black54,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8.0),
                 borderSide: BorderSide.none,
               ),
               filled: true,
-              fillColor: Colors.grey[200],
+              fillColor: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey[800]
+                  : Colors.grey[200], // Dynamic background color
+            ),
+            style: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Colors.black, // Input text color
             ),
           ),
         ),
-        // Event Type Dropdown
+
+// Event Type Dropdown
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: DropdownButtonFormField<String>(
@@ -177,7 +203,14 @@ class _AllEventsState extends State<AllEvents> {
             items: _eventTypes.map((eventType) {
               return DropdownMenuItem(
                 value: eventType,
-                child: Text(eventType),
+                child: Text(
+                  eventType,
+                  style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black, // Dropdown item text color
+                  ),
+                ),
               );
             }).toList(),
             onChanged: (value) {
@@ -189,10 +222,16 @@ class _AllEventsState extends State<AllEvents> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 12.0),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8.0),
+                borderSide: BorderSide.none,
               ),
               filled: true,
-              fillColor: Colors.grey[200],
+              fillColor: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey[800]
+                  : Colors.grey[200], // Dynamic background color
             ),
+            dropdownColor: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey[800]
+                : Colors.white, // Dropdown menu background
           ),
         ),
         // Event List
@@ -272,67 +311,6 @@ class _AllEventsState extends State<AllEvents> {
           ),
         ),
       ],
-    );
-  }
-}
-
-
-
-class EventCard extends StatelessWidget {
-  final String title;
-  final String summary;
-  final String host;
-  final DateTime? startingTime;
-  final int quota;
-  final String? imageBase64;
-  final VoidCallback onTap;
-
-  const EventCard({
-    Key? key,
-    required this.title,
-    required this.summary,
-    required this.host,
-    required this.startingTime,
-    required this.quota,
-    this.imageBase64,
-    required this.onTap,
-    required String documentId,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Card(
-        elevation: 2.0,
-        child: ListTile(
-          leading: imageBase64 != null
-              ? Image.memory(
-            base64Decode(imageBase64!),
-            width: 50,
-            height: 50,
-            fit: BoxFit.cover,
-          )
-              : Container(
-            width: 50,
-            height: 50,
-            color: Colors.grey[300],
-          ),
-          title: Text(title),
-          subtitle: Text(
-            summary,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: Text(
-            startingTime != null
-                ? '${startingTime!.day}-${startingTime!.month}-${startingTime!.year} ${startingTime!.hour}:${startingTime!.minute}'
-                : 'No Time',
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-          onTap: onTap,
-        ),
-      ),
     );
   }
 }

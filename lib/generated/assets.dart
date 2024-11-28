@@ -9,6 +9,7 @@ class Assets {
   static const String libFirebaseOptions = 'lib/firebase_options.dart';
   static const String libMain = 'lib/main.dart';
   static const String providersAuthProvider = 'lib/providers/auth_provider.dart';
+  static const String providersThemeProvider = 'lib/providers/theme_provider.dart';
   static const String screensAddEventScreen = 'lib/screens/add_event_screen.dart';
   static const String screensAdminScreen = 'lib/screens/admin_screen.dart';
   static const String screensEditEventScreen = 'lib/screens/edit_event_screen.dart';

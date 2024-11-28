@@ -129,24 +129,29 @@ class _AddEventFormState extends State<AddEventForm> {
   }
 
   InputDecoration _buildInputDecoration(String label, IconData icon) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: Colors.black54),
-      prefixIcon: Icon(icon, color: Colors.black54),
+      labelStyle: TextStyle(color: isDarkMode ? Colors.white70 : Colors.black54),
+      prefixIcon: Icon(icon, color: isDarkMode ? Colors.white70 : Colors.black54),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12.0),
-        borderSide: const BorderSide(color: Colors.black54),
+        borderSide: BorderSide(color: isDarkMode ? Colors.white38 : Colors.black54),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12.0),
-        borderSide: const BorderSide(color: Colors.blue, width: 2.0),
+        borderSide: BorderSide(color: isDarkMode ? Colors.blue[300]! : Colors.blue, width: 2.0),
       ),
       contentPadding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+      filled: true,
+      fillColor: isDarkMode ? Colors.grey[800] : Colors.grey[200], // Background color for inputs
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add New Event'),
@@ -159,6 +164,7 @@ class _AddEventFormState extends State<AddEventForm> {
             children: [
               TextFormField(
                 controller: _eventNameController,
+                style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
                 decoration: _buildInputDecoration('Event Name', Icons.event),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -170,6 +176,7 @@ class _AddEventFormState extends State<AddEventForm> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _summaryController,
+                style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
                 decoration: _buildInputDecoration('Summary', Icons.description),
                 maxLines: 3,
                 validator: (value) {
@@ -182,6 +189,7 @@ class _AddEventFormState extends State<AddEventForm> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _eventHostController,
+                style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
                 decoration: _buildInputDecoration('Event Host', Icons.person),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -193,6 +201,7 @@ class _AddEventFormState extends State<AddEventForm> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _cityController,
+                style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
                 decoration: _buildInputDecoration('City', Icons.location_city),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -204,6 +213,7 @@ class _AddEventFormState extends State<AddEventForm> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _quotaController,
+                style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
                 decoration: _buildInputDecoration('Quota', Icons.people),
                 keyboardType: TextInputType.number,
                 validator: (value) {
@@ -219,7 +229,9 @@ class _AddEventFormState extends State<AddEventForm> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _selectedEventType,
+                style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
                 decoration: _buildInputDecoration('Event Type', Icons.category),
+                dropdownColor: isDarkMode ? Colors.grey[800] : Colors.white,
                 items: const [
                   DropdownMenuItem(value: 'seminar', child: Text('Seminar')),
                   DropdownMenuItem(value: 'online', child: Text('Online')),
@@ -242,6 +254,7 @@ class _AddEventFormState extends State<AddEventForm> {
                   _selectedDateTime == null
                       ? 'Select Starting Time'
                       : 'Starting Time: ${_selectedDateTime.toString()}',
+                  style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
                 ),
                 trailing: const Icon(Icons.calendar_today),
                 onTap: _pickDateTime,
@@ -250,12 +263,16 @@ class _AddEventFormState extends State<AddEventForm> {
               Row(
                 children: [
                   _selectedImageBytes != null
-                      ? Image.memory(_selectedImageBytes!,
-                      width: 100, height: 100, fit: BoxFit.cover)
+                      ? Image.memory(
+                    _selectedImageBytes!,
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.cover,
+                  )
                       : Container(
                     width: 100,
                     height: 100,
-                    color: Colors.grey[300],
+                    color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
                     child: const Icon(Icons.image, size: 50),
                   ),
                   const SizedBox(width: 16),
@@ -269,6 +286,11 @@ class _AddEventFormState extends State<AddEventForm> {
               ElevatedButton(
                 onPressed: _saveEvent,
                 child: const Text("Save Event"),
+                style: ElevatedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                ),
               ),
             ],
           ),
