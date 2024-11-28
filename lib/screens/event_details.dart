@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:uasppb_2021130024/screens/edit_event_screen.dart';
 import 'package:uasppb_2021130024/screens/registered_users.dart';
+
 
 class EventDetailsScreen extends StatefulWidget {
   final bool isAdmin;
@@ -260,8 +262,13 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                 final registrants = data['registrants'] as List<dynamic>? ?? [];
                 final remainingQuota = widget.quota - registrants.length;
 
+                // Format the starting time
+                final formattedStartingTime = startingTime != null
+                    ? DateFormat('dd-MM-yy HH:mm:ss').format(startingTime!)
+                    : 'N/A';
+
                 return Text(
-                  "${startingTime?.toString()}   |   Remaining Quota: $remainingQuota",
+                  "$formattedStartingTime   |   Remaining Quota: $remainingQuota",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -362,19 +369,66 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   }
 
   Widget _buildRegisterButton() {
-    return ElevatedButton(
-      onPressed: _registerForEvent,
-      child: const Text('Register'),
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.documentId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return ElevatedButton(
+            onPressed: null,
+            child: const Text('Register'),
+          ); // Disable button while loading
+        }
+
+        final data = snapshot.data!.data() as Map<String, dynamic>;
+        final registrants = data['registrants'] as List<dynamic>? ?? [];
+        final remainingQuota = widget.quota - registrants.length;
+
+        // Disable the button if the quota is full
+        final isQuotaFull = remainingQuota <= 0;
+
+        return ElevatedButton(
+          onPressed: isQuotaFull ? null : _registerForEvent,
+          child: const Text('Register'),
+        );
+      },
     );
   }
 
   Widget _buildCancelButton() {
     return ElevatedButton(
       onPressed: () async {
-        await _cancelRegistration(widget.documentId);
-        _checkRegistrationStatus();
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Cancel Registration'),
+              content: const Text(
+                  'Are you sure you want to cancel your registration for this event?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('No'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Yes'),
+                ),
+              ],
+            );
+          },
+        );
+
+        // If the user confirms, proceed with cancellation
+        if (confirmed == true) {
+          await _cancelRegistration(widget.documentId);
+          _checkRegistrationStatus();
+        }
       },
       child: const Text('Cancel Registration'),
     );
   }
+
 }

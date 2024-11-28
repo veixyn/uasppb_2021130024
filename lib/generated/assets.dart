@@ -4,6 +4,7 @@ class Assets {
 
   static const String assetsLoginImage = 'assets/login_image.png';
   static const String assetsRegisterImage = 'assets/register_image.png';
+  static const String componentEventCard = 'lib/component/event_card.dart';
   static const String generatedAssets = 'lib/generated/assets.dart';
   static const String libFirebaseOptions = 'lib/firebase_options.dart';
   static const String libMain = 'lib/main.dart';
