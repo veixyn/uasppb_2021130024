@@ -315,7 +315,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                 ),
               );
             },
-            child: const Text("View Registrants")),
+            child: const Text("Registrants")),
         ElevatedButton(
           onPressed: () => _navigateAndEditEvent(screenContext),
           child: const Text("Edit"),

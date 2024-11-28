@@ -1,10 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
-import 'dart:html' as html;
 
 class AddEventForm extends StatefulWidget {
   @override
@@ -20,38 +18,23 @@ class _AddEventFormState extends State<AddEventForm> {
   final _quotaController = TextEditingController();
   DateTime? _selectedDateTime;
   Uint8List? _selectedImageBytes;
-  final ImagePicker _picker = ImagePicker();
   String? _selectedEventType;
 
   // Function to select an image from the gallery and convert to bytes
   Future<void> _pickImage() async {
-    if (kIsWeb) {
-      // Web-specific logic
-      final html.FileUploadInputElement uploadInput = html.FileUploadInputElement();
-      uploadInput.accept = 'image/*'; // Accept only images
-      uploadInput.click();
+    // Use file_picker for cross-platform file selection
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image, // Restrict to image files
+      withData: true,       // Get the file bytes
+    );
 
-      uploadInput.onChange.listen((event) async {
-        final file = uploadInput.files!.first;
-        final reader = html.FileReader();
-
-        reader.readAsArrayBuffer(file);
-        reader.onLoadEnd.listen((event) {
-          setState(() {
-            _selectedImageBytes = reader.result as Uint8List?;
-          });
-        });
+    if (result != null && result.files.isNotEmpty) {
+      setState(() {
+        _selectedImageBytes = result.files.first.bytes; // Get image bytes
       });
-    } else {
-      // Mobile/desktop logic
-      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-      if (pickedFile != null) {
-        setState(() {
-          _selectedImageBytes = File(pickedFile.path).readAsBytesSync();
-        });
-      }
     }
   }
+
 
   // Function to select date and time
   Future<void> _pickDateTime() async {
@@ -108,6 +91,11 @@ class _AddEventFormState extends State<AddEventForm> {
         );
         _formKey.currentState!.reset();
         setState(() {
+          _eventNameController.text = '';
+          _summaryController.text = '';
+          _eventHostController.text = '';
+          _cityController.text = '';
+          _quotaController.text = '';
           _selectedDateTime = null;
           _selectedImageBytes = null;
           _selectedEventType = null;
@@ -272,7 +260,9 @@ class _AddEventFormState extends State<AddEventForm> {
                       : Container(
                     width: 100,
                     height: 100,
-                    color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[700]
+                        : Colors.grey[300],
                     child: const Icon(Icons.image, size: 50),
                   ),
                   const SizedBox(width: 16),

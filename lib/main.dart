@@ -1,15 +1,9 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'package:uasppb_2021130024/main.dart';
 import 'package:uasppb_2021130024/provider/auth_provider.dart';
 import 'package:uasppb_2021130024/provider/theme_provider.dart';
-import 'package:uasppb_2021130024/screens/admin_screen.dart';
-import 'package:uasppb_2021130024/screens/upcoming_events.dart';
 import 'firebase_options.dart';
-import 'screens/login_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 
 void main() async {

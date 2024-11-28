@@ -43,6 +43,7 @@ dependencies:
   provider: ^6.1.2
   cloud_firestore: ^5.4.4
   intl: any
+  file_picker: ^5.2.5
 
 dev_dependencies:
   flutter_test:
