@@ -308,6 +308,7 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
                         imageBase64: event['imageBase64'],
                         onEventUpdated: widget.refreshEvents,
                         hideRegistrationButton: false,
+                        eventType: event['eventType'] ?? 'Unknown Type',
                       ),
                     ),
                   );

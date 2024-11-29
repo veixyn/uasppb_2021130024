@@ -18,6 +18,7 @@ class EventDetailsScreen extends StatefulWidget {
   final String summary;
   final String? imageBase64;
   final String documentId;
+  final String eventType;
 
   EventDetailsScreen({
     required this.isAdmin,
@@ -30,6 +31,7 @@ class EventDetailsScreen extends StatefulWidget {
     required this.documentId,
     required VoidCallback onEventUpdated,
     required this.hideRegistrationButton,
+    required this.eventType,
   });
 
   @override
@@ -42,6 +44,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   DateTime? startingTime;
   late String summary;
   String? imageBase64;
+  late String eventType;
 
   bool isRegistered = false; // Track registration status
   String? userId; // Store actual user ID
@@ -56,6 +59,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     startingTime = widget.startingTime;
     summary = widget.summary;
     imageBase64 = widget.imageBase64;
+    eventType = widget.eventType;
 
     _fetchCurrentUserId();
   }
@@ -261,6 +265,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                 final data = snapshot.data!.data() as Map<String, dynamic>;
                 final registrants = data['registrants'] as List<dynamic>? ?? [];
                 final remainingQuota = widget.quota - registrants.length;
+                final currentEventType = eventType.toUpperCase();
 
                 // Format the starting time
                 final formattedStartingTime = startingTime != null
@@ -268,7 +273,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                     : 'N/A';
 
                 return Text(
-                  "$formattedStartingTime   |   Remaining Quota: $remainingQuota",
+                  "$formattedStartingTime   |   Remaining Quota: $remainingQuota    |    $currentEventType",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,

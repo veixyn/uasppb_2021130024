@@ -299,6 +299,7 @@ class _AllEventsState extends State<AllEvents> {
                             imageBase64: event['imageBase64'],
                             onEventUpdated: widget.refreshEvents,
                             hideRegistrationButton: false,
+                            eventType: event['eventType'] ?? 'Unknown Type',
                           ),
                         ),
                       );
