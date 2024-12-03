@@ -8,6 +8,8 @@ import 'package:uasppb_2021130024/screens/finished_events.dart';
 import 'package:uasppb_2021130024/screens/login_screen.dart';
 import 'package:uasppb_2021130024/screens/my_events.dart';
 import 'package:provider/provider.dart';
+import 'package:uasppb_2021130024/screens/notifications_screen.dart';
+import 'package:badges/badges.dart' as badges;
 
 class UpcomingEventsScreen extends StatelessWidget {
   @override
@@ -23,6 +25,13 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
+  int _unreadNotificationsCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUnreadNotificationsCount();
+  }
 
   final List<Widget> _pages = [
     UpcomingEvents(refreshEvents: () {}),
@@ -36,6 +45,23 @@ class _HomePageState extends State<HomePage> {
     } else {
       setState(() {
         _selectedIndex = index;
+      });
+    }
+  }
+
+  Future<void> _fetchUnreadNotificationsCount() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+
+    if (userId != null) {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('notifications')
+          .doc(userId)
+          .collection('userNotifications')
+          .where('readStatus', isEqualTo: false)
+          .get();
+
+      setState(() {
+        _unreadNotificationsCount = querySnapshot.docs.length;
       });
     }
   }
@@ -84,6 +110,28 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('Dicoding Events'),
         actions: [
+          // Notifications Icon with Badge
+          badges.Badge(
+            position: badges.BadgePosition.topEnd(top: 0, end: 3),
+            badgeContent: Text(
+              _unreadNotificationsCount.toString(),
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+            ),
+            showBadge: _unreadNotificationsCount > 0, // Show badge only if there are unread notifications
+            child: IconButton(
+              icon: const Icon(Icons.notifications),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => NotificationsScreen()),
+                );
+                // Refresh unread notifications count after returning from the notifications screen
+                _fetchUnreadNotificationsCount();
+              },
+            ),
+          ),
+
+          // Dark Mode Toggle
           IconButton(
             icon: Icon(
               isDarkMode ? Icons.lightbulb : Icons.lightbulb_outline,

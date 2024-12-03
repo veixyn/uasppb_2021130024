@@ -8,8 +8,8 @@ class Assets {
   static const String generatedAssets = 'lib/generated/assets.dart';
   static const String libFirebaseOptions = 'lib/firebase_options.dart';
   static const String libMain = 'lib/main.dart';
-  static const String providersAuthProvider = 'lib/providers/auth_provider.dart';
-  static const String providersThemeProvider = 'lib/providers/theme_provider.dart';
+  static const String providerAuthProvider = 'lib/provider/auth_provider.dart';
+  static const String providerThemeProvider = 'lib/provider/theme_provider.dart';
   static const String screensAddEventScreen = 'lib/screens/add_event_screen.dart';
   static const String screensAdminScreen = 'lib/screens/admin_screen.dart';
   static const String screensEditEventScreen = 'lib/screens/edit_event_screen.dart';
@@ -17,6 +17,7 @@ class Assets {
   static const String screensFinishedEvents = 'lib/screens/finished_events.dart';
   static const String screensLoginScreen = 'lib/screens/login_screen.dart';
   static const String screensMyEvents = 'lib/screens/my_events.dart';
+  static const String screensNotificationsScreen = 'lib/screens/notifications_screen.dart';
   static const String screensRegisterScreen = 'lib/screens/register_screen.dart';
   static const String screensRegisteredUsers = 'lib/screens/registered_users.dart';
   static const String screensUpcomingEvents = 'lib/screens/upcoming_events.dart';

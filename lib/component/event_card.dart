@@ -26,7 +26,7 @@ class EventCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final formattedStartingTime = startingTime != null
-        ? DateFormat('dd-MM-yy HH:mm:ss').format(startingTime!)
+        ? DateFormat('dd-MM-yy HH:mm').format(startingTime!)
         : 'No Time';
 
     return Padding(
