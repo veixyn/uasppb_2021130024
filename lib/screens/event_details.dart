@@ -196,7 +196,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         eventTitle = updatedData['eventName'];
         eventHost = updatedData['eventHost'];
         startingTime = updatedData['startingTime'];
-        summary = updatedData['summary'];
+        summary = updatedData['summary'] ?? "";
         imageBase64 = updatedData['imageBase64'];
       });
     }
@@ -254,9 +254,25 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                   .doc(widget.documentId)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Text(
                     "Loading...",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return const Text(
+                    "Something went wrong.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data == null || snapshot.data!.data() == null) {
+                  return const Text(
+                    "No data available.",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14),
                   );
@@ -381,9 +397,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return ElevatedButton(
+          return const ElevatedButton(
             onPressed: null,
-            child: const Text('Register'),
+            child: Text('Register'),
           ); // Disable button while loading
         }
 

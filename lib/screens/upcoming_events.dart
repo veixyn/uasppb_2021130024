@@ -8,6 +8,8 @@ import 'package:uasppb_2021130024/screens/finished_events.dart';
 import 'package:uasppb_2021130024/screens/login_screen.dart';
 import 'package:uasppb_2021130024/screens/my_events.dart';
 import 'package:provider/provider.dart';
+import 'package:uasppb_2021130024/screens/notifications_screen.dart';
+import 'package:badges/badges.dart' as badges;
 
 class UpcomingEventsScreen extends StatelessWidget {
   @override
@@ -23,12 +25,32 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
+  int _unreadNotificationsCount = 0;
 
-  final List<Widget> _pages = [
-    UpcomingEvents(refreshEvents: () {}),
-    FinishedEventsScreen(),
-    MyEventsScreen(),
-  ];
+  late List<Widget> _pages; // Declare as late to initialize later
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchUnreadNotificationsCount();
+    });
+
+    // Initialize _pages here
+    _pages = [
+      UpcomingEvents(
+        refreshEvents: () {},
+        updateUnreadNotificationsCount: (count) {
+          setState(() {
+            _unreadNotificationsCount = count; // Update badge count dynamically
+          });
+        },
+      ),
+      FinishedEventsScreen(),
+      MyEventsScreen(),
+    ];
+  }
 
   void _onItemTapped(int index) async {
     if (index == 3) {
@@ -36,6 +58,23 @@ class _HomePageState extends State<HomePage> {
     } else {
       setState(() {
         _selectedIndex = index;
+      });
+    }
+  }
+
+  Future<void> _fetchUnreadNotificationsCount() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+
+    if (userId != null) {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('notifications')
+          .doc(userId)
+          .collection('userNotifications')
+          .where('readStatus', isEqualTo: false)
+          .get();
+
+      setState(() {
+        _unreadNotificationsCount = querySnapshot.docs.length;
       });
     }
   }
@@ -84,6 +123,26 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('Dicoding Events'),
         actions: [
+          // Notifications Icon with Badge
+          badges.Badge(
+            position: badges.BadgePosition.topEnd(top: 0, end: 3),
+            badgeContent: Text(
+              _unreadNotificationsCount.toString(),
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+            ),
+            showBadge: _unreadNotificationsCount > 0,
+            child: IconButton(
+              icon: const Icon(Icons.notifications),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => NotificationsScreen()),
+                );
+                _fetchUnreadNotificationsCount(); // Refresh unread notifications count
+              },
+            ),
+          ),
+          // Dark Mode Toggle
           IconButton(
             icon: Icon(
               isDarkMode ? Icons.lightbulb : Icons.lightbulb_outline,
@@ -99,8 +158,8 @@ class _HomePageState extends State<HomePage> {
         selectedItemColor: isDarkMode ? Colors.white : Colors.black,
         unselectedItemColor: isDarkMode ? Colors.grey[600] : Colors.grey,
         backgroundColor: isDarkMode ? Colors.black : Colors.white,
-        currentIndex: _selectedIndex, // Track the selected index
-        onTap: _onItemTapped, // Handle item tap
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.event_available),
@@ -124,11 +183,13 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
+
 // "Upcoming Events" Page
 class UpcomingEvents extends StatefulWidget {
   final VoidCallback refreshEvents;
+  final ValueChanged<int> updateUnreadNotificationsCount;
 
-  const UpcomingEvents({Key? key, required this.refreshEvents}) : super(key: key);
+  const UpcomingEvents({Key? key, required this.refreshEvents, required this.updateUnreadNotificationsCount}) : super(key: key);
 
   @override
   _UpcomingEventsState createState() => _UpcomingEventsState();
@@ -146,6 +207,7 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
   @override
   void initState() {
     super.initState();
+    _fetchUnreadNotificationsCount();
     _fetchUpcomingEvents();
     _searchController.addListener(_filterEvents);
   }
@@ -154,6 +216,24 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchUnreadNotificationsCount() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+
+    if (userId != null) {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('notifications')
+          .doc(userId)
+          .collection('userNotifications')
+          .where('readStatus', isEqualTo: false)
+          .get();
+
+      final unreadCount = querySnapshot.docs.length;
+
+      // Update badge count in the parent widget
+      widget.updateUnreadNotificationsCount(unreadCount);
+    }
   }
 
   Future<void> _fetchUpcomingEvents() async {
@@ -173,6 +253,8 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
         _allEvents = events.docs;
         _filteredEvents = events.docs; // Show all events initially
       });
+
+      _fetchUnreadNotificationsCount();
     } catch (e) {
       print("Error fetching events: $e");
     } finally {
@@ -293,8 +375,8 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
                 startingTime: startingTime,
                 quota: event['quota'] ?? 0,
                 imageBase64: event['imageBase64'],
-                onTap: () {
-                  Navigator.push(
+                onTap: () async {
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => EventDetailsScreen(
@@ -312,6 +394,7 @@ class _UpcomingEventsState extends State<UpcomingEvents> {
                       ),
                     ),
                   );
+                  _fetchUnreadNotificationsCount();
                 },
               );
             },

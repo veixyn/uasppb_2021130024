@@ -1,10 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class RegisteredUsersPage extends StatefulWidget {
   final String documentId;
 
-  const RegisteredUsersPage({Key? key, required this.documentId}) : super(key: key);
+  const RegisteredUsersPage({super.key, required this.documentId});
 
   @override
   _RegisteredUsersPageState createState() => _RegisteredUsersPageState();
@@ -13,6 +14,7 @@ class RegisteredUsersPage extends StatefulWidget {
 class _RegisteredUsersPageState extends State<RegisteredUsersPage> {
   late Future<List<Map<String, dynamic>>> _registeredUsersFuture;
   DateTime? _startingTime;
+  late String? _eventName;
 
   @override
   void initState() {
@@ -24,8 +26,10 @@ class _RegisteredUsersPageState extends State<RegisteredUsersPage> {
   Future<void> _fetchStartingTime() async {
     final eventDoc = await FirebaseFirestore.instance.collection('events').doc(widget.documentId).get();
     final startingTimestamp = eventDoc['startingTime'] as Timestamp?;
+    final getEventName = eventDoc['eventName'];
     setState(() {
       _startingTime = startingTimestamp?.toDate();
+      _eventName = getEventName;
     });
   }
 
@@ -44,24 +48,86 @@ class _RegisteredUsersPageState extends State<RegisteredUsersPage> {
     return usersQuery.docs.map((doc) => doc.data()).toList();
   }
 
-  Future<void> _removeUserFromEvent(String userId) async {
-    try {
-      await FirebaseFirestore.instance.collection('events').doc(widget.documentId).update({
-        'registrants': FieldValue.arrayRemove([userId]),
-      });
+  Future<void> _removeUserFromEvent(
+      BuildContext context, String userId, String eventId) async {
+    // Step 1: Show a dialog to input the custom message
+    final customMessage = await _showCustomMessageDialog(context);
 
-      setState(() {
-        _registeredUsersFuture = _fetchRegisteredUsers(); // Refresh the list
-      });
+    if (customMessage != null && customMessage.isNotEmpty) {
+      final eventRef = FirebaseFirestore.instance.collection('events').doc(eventId);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("User removed successfully")),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to remove user: $e")),
-      );
+      try {
+        // Step 2: Remove the user from the "registrants" array
+        await eventRef.update({
+          'registrants': FieldValue.arrayRemove([userId]),
+        });
+
+        // Step 3: Add a custom notification for the user
+        final notificationRef = FirebaseFirestore.instance
+            .collection('notifications')
+            .doc(userId)
+            .collection('userNotifications')
+            .doc();
+
+        await notificationRef.set({
+          'message': "You are removed from the event $_eventName because $customMessage ", // Custom notification message
+          'eventId': eventId,
+          'timestamp': FieldValue.serverTimestamp(),
+          'readStatus': false,
+        });
+
+        setState(() {
+          _registeredUsersFuture = _fetchRegisteredUsers(); // Refresh the list
+        });
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error removing user from the event: $e');
+        }
+      }
+    } else {
+      if (kDebugMode) {
+        print('Operation canceled or no message entered.');
+      }
     }
+  }
+
+  Future<String?> _showCustomMessageDialog(BuildContext context) async {
+    String? customMessage;
+
+    await showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        final TextEditingController controller = TextEditingController();
+
+        return AlertDialog(
+          title: const Text('State the reason here'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              hintText: 'You are removed from the event because...',
+            ),
+            maxLines: 2,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(null); // Cancel operation
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                customMessage = controller.text.trim();
+                Navigator.of(dialogContext).pop(customMessage);
+              },
+              child: const Text('Send'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return customMessage;
   }
 
   void _showConfirmationDialog(String userId, String userName) {
@@ -81,7 +147,7 @@ class _RegisteredUsersPageState extends State<RegisteredUsersPage> {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop(); // Close the dialog
-                _removeUserFromEvent(userId);
+                _removeUserFromEvent(context, userId, widget.documentId);
               },
               child: const Text("Remove"),
             ),
