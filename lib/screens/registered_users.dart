@@ -1,10 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class RegisteredUsersPage extends StatefulWidget {
   final String documentId;
 
-  const RegisteredUsersPage({Key? key, required this.documentId}) : super(key: key);
+  const RegisteredUsersPage({super.key, required this.documentId});
 
   @override
   _RegisteredUsersPageState createState() => _RegisteredUsersPageState();
@@ -78,13 +79,15 @@ class _RegisteredUsersPageState extends State<RegisteredUsersPage> {
         setState(() {
           _registeredUsersFuture = _fetchRegisteredUsers(); // Refresh the list
         });
-
-        print('User successfully removed from the event with a custom notification.');
       } catch (e) {
-        print('Error removing user from the event: $e');
+        if (kDebugMode) {
+          print('Error removing user from the event: $e');
+        }
       }
     } else {
-      print('Operation canceled or no message entered.');
+      if (kDebugMode) {
+        print('Operation canceled or no message entered.');
+      }
     }
   }
 
